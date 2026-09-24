@@ -74,7 +74,7 @@ Debug and profile builds also accept test controls written by the script: `ctl_i
 | Enemy bullets, peak | 32 | pool of 32 |
 | Enemies, peak | 9 | pool of 16 |
 | Player shots, peak | 24 | pool of 24 |
-| ROM size | 331,468 bytes (324 KB) | 32 MB |
+| ROM size | 331,532 bytes (324 KB) | 32 MB |
 
 When a pool is full, spawn requests are dropped (`pool_drops` in telemetry, about 40 per full run, almost all of them during boss fights). This is the intended graceful degradation: nothing is overwritten and the frame budget holds.
 

@@ -63,6 +63,9 @@ namespace ss
     constexpr int hud_bg_priority = 0;
 
     constexpr int stage_count = 3;
+
+    // Shown on the title screen; keep in sync with the git tag / GitHub release.
+    constexpr const char* version_text = "V0.0.1 BETA";
 }
 
 #endif

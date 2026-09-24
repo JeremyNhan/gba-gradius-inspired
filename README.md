@@ -4,7 +4,7 @@ An original horizontal shoot-'em-up for the **Game Boy Advance**, built on [Buta
 
 ![Title](docs/img/title.png) ![Stage 2](docs/img/stage2.png) ![Final boss](docs/img/boss3.png)
 
-Output: **`spaceshooter.gba`** (≈ 323 KB) in the repository root.
+Output: **`spaceshooter.gba`** (≈ 324 KB) in the repository root. Current version: **v0.0.1-beta**. Download the ROM from the [Releases](https://github.com/JeremyNhan/gba-gradius-inspired/releases) page; changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Controls
 

@@ -29,7 +29,9 @@ title_screen::title_screen(text& text_generator, int hiscore) :
     format_number(hiscore, 8, high);
     _text.centered(46, high, _info);
     _text.centered(58, "A:SHOT  B:CHARGE  START:PAUSE", _info, text_color::CYAN);
-    _text.centered(70, "(C) 2026  ORIGINAL GBA HOMEBREW", _info);
+    bn::string<40> credits(version_text);
+    credits.append("  (C) 2026 HOMEBREW");
+    _text.centered(70, credits, _info);
 
     // A small ship cruising under the logo.
     _ship = bn::sprite_items::player.create_sprite(-140, 12);
