@@ -1,15 +1,12 @@
 #ifndef SS_SAVE_H
 #define SS_SAVE_H
 
-namespace ss::save
-{
-    /// Reads the high score from cartridge SRAM; returns the default if SRAM is blank or corrupt.
-    [[nodiscard]] int load_hiscore();
+#include "ss_base.h"
 
-    /// Writes the high score to SRAM (with magic + checksum).
-    void store_hiscore(int hiscore);
+#define DEFAULT_HISCORE 20000
 
-    constexpr int default_hiscore = 20000;
-}
+/* High score from SRAM, or DEFAULT_HISCORE if the save is missing or corrupt. */
+int save_load_hiscore(void);
+void save_store_hiscore(int hiscore);
 
 #endif

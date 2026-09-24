@@ -1,125 +1,97 @@
+/*
+ * Everything that exists while a stage is being played. There is exactly one world at a time
+ * (static state, no heap): world_init() resets every entity system for game.stage.
+ */
 #ifndef SS_WORLD_H
 #define SS_WORLD_H
 
-#include "bn_camera_ptr.h"
-#include "bn_fixed_point.h"
-#include "bn_optional.h"
-#include "bn_random.h"
-
-#include "ss_backgrounds.h"
-#include "ss_boss.h"
-#include "ss_bullets.h"
-#include "ss_effects.h"
-#include "ss_enemies.h"
-#include "ss_hud.h"
-#include "ss_player.h"
-#include "ss_powerups.h"
-#include "ss_session.h"
-#include "ss_shots.h"
+#include "ss_base.h"
+#include "ss_rng.h"
 #include "ss_stage_data.h"
-#include "ss_stage_runner.h"
-#include "ss_terrain.h"
 
-namespace ss
+/* ----- the play-through (title -> game over / ending) --------------------------------------------- */
+
+typedef struct
 {
+    int power;              /* step on the power ladder, 0..MAX_POWER (ss_power_data.h) */
+    int shield;             /* hits absorbed, 0..MAX_SHIELD */
+} loadout;
 
-class text;
-
-/**
- * Everything that exists while a stage is being played. One world object is created per stage
- * (in EWRAM, see ss_app.cpp) and destroyed on stage clear / game over, which releases all sprites
- * and backgrounds in one go.
- */
-class world
+typedef struct
 {
+    int stage;              /* 0-based */
+    int lives;
+    int score;
+    int hiscore;
+    int deaths;
+    loadout gear;
+} session;
 
-public:
-    enum class result : unsigned char
-    {
-        NONE,
-        STAGE_CLEARED,
-        GAME_OVER,
-        GAME_COMPLETE
-    };
+extern session game;
 
-    world(session& game_session, text& text_generator);
+void session_new_game(int stage);
+void game_add_score(int points);
 
-    /// One gameplay frame. Deterministic: depends only on input and the seeded RNG.
-    [[nodiscard]] result update();
+/* ----- the current stage -------------------------------------------------------------------------- */
 
-    /// Stage-clear outro: scrolling continues and the ship flies off-screen. Returns true when done.
-    bool update_outro();
+typedef enum
+{
+    WORLD_RUNNING,
+    WORLD_STAGE_CLEARED,
+    WORLD_GAME_OVER,
+    WORLD_GAME_COMPLETE
+} world_result;
 
-    // ----- shared services used by the entity systems --------------------------------------------
-    session& game;
-    text& txt;
-    bn::optional<bn::camera_ptr> camera;
-    const stage_def& stage;
-    bn::random rng;
-    bn::fixed scroll_x = 0;
-    bn::fixed scroll_speed;
-    int stage_frame = 0;
+typedef struct
+{
+    const stage_def* stage;
+    rng random;
+    fx scroll_x;
+    fx scroll_speed;
+    int stage_frame;
+    int shake_frames;
+    int shake_amplitude;
+    int game_over_timer;
+    int clear_timer;
+    int flash_frames;
+    int shockwaves;         /* fired this stage */
+    bool debug_overlay;
+} world_state;
 
-    terrain ground;             // created first: its tiles must start at a charblock boundary
-    backgrounds bgs;
-    player ship;
-    player_shots shots;
-    enemies foes;
-    enemy_bullets bullets;
-    powerups items;
-    effects fx;
-    boss big_boss;
-    stage_runner runner;
-    hud display;
+extern world_state world;
 
-    /// Short screen shake (amplitude in pixels).
-    void shake(int frames, int amplitude);
+void world_init(void);
+world_result world_update(void);
+bool world_update_outro(void);      /* stage clear: ship flies off; true when done */
+void world_render(void);
+void world_release(void);           /* leaving gameplay: hide the stage layers */
 
-    void add_score(int points);
+void world_shake(int frames, int amplitude);
+void world_set_power(int power);
+void world_shockwave(void);
+void world_notify_boss_defeated(void);
+void world_notify_player_out_of_lives(void);
 
-    /// Moves the player to a step of the power ladder (grants the shield when the SHIELD step is reached).
-    void set_power(int power);
+bool world_fire_held(void);
+bool world_charge_held(void);
+bool world_invincible(void);
 
-    /// Shockwave (top power step): destroys every enemy and bullet, damages the boss, flashes the
-    /// screen and makes the player briefly invulnerable.
-    void shockwave();
-
-    int shockwaves = 0;         // fired this stage (telemetry)
-
-    /// Difficulty scale for enemy fire rates/speeds: 0 for stage 1, grows with each stage.
-    [[nodiscard]] int difficulty() const
-    {
-        return game.stage;
-    }
-
-    /// Input helpers (include the debug test hooks).
-    [[nodiscard]] bool fire_held() const;
-    [[nodiscard]] bool charge_held() const;
-    [[nodiscard]] bool invincible() const;
-
-    /// Called by the player when its last life is gone.
-    void notify_player_out_of_lives()
-    {
-        _game_over_timer = 120;
-    }
-
-    /// Called by the boss when its death sequence has finished.
-    void notify_boss_defeated();
-
-private:
-    int _shake_frames = 0;
-    int _shake_amplitude = 0;
-    int _game_over_timer = 0;
-    int _clear_timer = 0;
-    int _flash_frames = 0;
-    bool _debug_overlay = false;
-
-    void _collide();
-    void _update_camera();
-    void _update_flash();
-    void _update_telemetry();
-};
-
+static inline int world_difficulty(void)
+{
+    return game.stage;
 }
+
+#if SS_TEST_HOOKS
+/* Written by the test driver (and debug keys); ignored in release builds. */
+typedef struct
+{
+    bool invincible;
+    bool autofire;
+    bool skip_to_boss;
+    int set_power;          /* > 0: set the power ladder to step set_power - 1 */
+} test_controls;
+
+extern test_controls test_ctl;
+#endif
 
 #endif

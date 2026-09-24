@@ -1,73 +1,73 @@
 <#
 .SYNOPSIS
-    Runs Space Shooter's automated emulator tests (mGBA Lua scripts).
+    Builds the test ROM and runs the automated scenarios in mGBA (two boots: the second one checks
+    that the high score survived in SRAM).
 
 .EXAMPLE
-    .\tests\run_tests.ps1                         # smoke test on the release ROM
-    .\tests\run_tests.ps1 -Test full_run -DebugRom
-    .\tests\run_tests.ps1 -Test smoke -Fast       # run uncapped (no video/audio sync)
+    .\tests\run_tests.ps1            # build + run
+    .\tests\run_tests.ps1 -NoBuild   # run the existing spaceshooter_test.gba
 
 .NOTES
-    Needs an mGBA build with the --script option (0.11 / nightly). Put it in tools\emulator\ or set $env:MGBA.
-    A small emulator window opens while the test runs.
+    Needs an mGBA build with --script support (0.11 / nightly) in tools\emulator\ or $env:MGBA.
+    A small emulator window opens while the tests run (uncapped speed, about 20 seconds).
 #>
 param(
-    [string]$Test = 'smoke',
-    [ValidateSet('release', 'debug', 'profile')]
-    [string]$Build = 'release',
-    [switch]$DebugRom,
-    [switch]$Fast,
-    [int]$TimeoutSec = 900
+    [switch]$NoBuild,
+    [int]$TimeoutSec = 600
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-if ($DebugRom) { $Build = 'debug' }
-$romName = switch ($Build) { 'debug' { 'spaceshooter_debug' } 'profile' { 'spaceshooter_profile' } default { 'spaceshooter' } }
-$rom = Join-Path $root "$romName.gba"
-$elf = Join-Path $root "$romName.elf"
-if (-not (Test-Path $rom)) { throw "ROM not found: $rom (build it first)" }
-if (-not (Test-Path $elf)) { throw "ELF not found: $elf (needed for the telemetry address)" }
+
+if (-not $NoBuild) {
+    & (Join-Path $root 'build.ps1') -TestBuild
+}
+
+$rom = Join-Path $root 'spaceshooter_test.gba'
+$elf = Join-Path $root 'spaceshooter_test.elf'
+$sav = Join-Path $root 'spaceshooter_test.sav'
+if (-not (Test-Path $rom)) { throw "Test ROM not found: $rom" }
 
 $mgba = @($env:MGBA, (Join-Path $root 'tools\emulator\mGBA.exe')) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 if (-not $mgba) { throw 'mGBA (with --script support) not found. See README.md > Testing.' }
 
 $nm = 'C:\devkitPro\devkitARM\bin\arm-none-eabi-nm.exe'
-if ($env:DEVKITARM_WIN) { $nm = Join-Path $env:DEVKITARM_WIN 'bin\arm-none-eabi-nm.exe' }
-$symbol = & $nm $elf | Select-String ' ss_telemetry$'
-if (-not $symbol) { throw 'ss_telemetry symbol not found in ELF.' }
+$symbol = & $nm $elf | Select-String ' ss_test_io$'
+if (-not $symbol) { throw 'ss_test_io symbol not found in the ELF.' }
 $address = '0x' + ($symbol.Line -split ' ')[0]
 
 $out = Join-Path $PSScriptRoot 'out'
 New-Item -ItemType Directory -Force $out | Out-Null
-$outLua = ($out -replace '\\', '/')
-$testsLua = ($PSScriptRoot -replace '\\', '/')
-Remove-Item -ErrorAction SilentlyContinue (Join-Path $out "${Test}_result.txt")
+Get-ChildItem $out -File | Remove-Item
+Remove-Item -ErrorAction SilentlyContinue $sav        # fresh save: the first boot starts from the default hi-score
 
-$wrapper = Join-Path $out "run_$Test.lua"
-@"
-TELEMETRY_ADDR = $address
-OUT_DIR = "$outLua"
-TEST_NAME = "$Test"
-dofile("$testsLua/lib/harness.lua")
-dofile("$testsLua/$Test.lua")
+$failed = $false
+foreach ($boot in 1, 2) {
+    $result = Join-Path $out "results_boot$boot.txt"
+    $wrapper = Join-Path $out "launch_boot$boot.lua"
+    @"
+TEST_IO = $address
+OUT_DIR = "$($out -replace '\\', '/')"
+RESULT_FILE = "$($result -replace '\\', '/')"
+dofile("$(($PSScriptRoot -replace '\\', '/'))/launcher.lua")
 "@ | Set-Content -Encoding ascii $wrapper
 
-$mgbaArgs = @('--script', "`"$wrapper`"")
-if ($Fast) { $mgbaArgs += @('-C', 'videoSync=0', '-C', 'audioSync=0') }
-$mgbaArgs += "`"$rom`""
+    Write-Host "Boot $boot..."
+    $proc = Start-Process -FilePath $mgba -ArgumentList @('--script', "`"$wrapper`"", '-C', 'videoSync=0', '-C', 'audioSync=0', "`"$rom`"") -PassThru
+    if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+        Stop-Process -Id $proc.Id -Force
+        throw "Boot $boot timed out after $TimeoutSec s."
+    }
+    if (-not (Test-Path $result)) { throw "Boot $boot produced no result file." }
 
-Write-Host "Running '$Test' on $romName.gba (telemetry at $address)..."
-$sw = [Diagnostics.Stopwatch]::StartNew()
-$proc = Start-Process -FilePath $mgba -ArgumentList $mgbaArgs -PassThru
-if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
-    Stop-Process -Id $proc.Id -Force
-    throw "Test '$Test' timed out after $TimeoutSec s."
+    Get-Content $result | ForEach-Object {
+        if ($_ -match '^\[FAIL\]|RESULT: FAIL') { Write-Host $_ -ForegroundColor Red }
+        elseif ($_ -match '^===|^SUMMARY|^TOTAL|RESULT: PASS') { Write-Host $_ -ForegroundColor Cyan }
+        else { Write-Host $_ }
+    }
+    if (-not (Select-String -Path $result -Pattern 'RESULT: PASS' -Quiet)) { $failed = $true }
 }
-$sw.Stop()
 
-$resultFile = Join-Path $out "${Test}_result.txt"
-if (-not (Test-Path $resultFile)) { throw "No result file produced ($resultFile)." }
-Get-Content $resultFile
-Write-Host ("Elapsed: {0:N1} s" -f $sw.Elapsed.TotalSeconds)
-if ((Get-Content $resultFile -Tail 1) -notmatch ', 0 failed') { exit 1 }
+Write-Host ''
+if ($failed) { Write-Host 'TESTS FAILED' -ForegroundColor Red; exit 1 }
+Write-Host 'ALL TESTS PASSED' -ForegroundColor Green

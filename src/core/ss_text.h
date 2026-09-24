@@ -1,73 +1,45 @@
+/*
+ * Text on BG0 with the original 5x7 font at a 6 px pitch (fits a 40-column HUD line on 240 px).
+ *
+ * Every screen row (20 rows of 8 px) owns 30 BG tiles; strings are drawn into those tiles in RAM
+ * and the changed rows are copied to VRAM during VBlank. Colours are BG palette banks per 8 px cell,
+ * so two strings on one row must not share a cell.
+ */
 #ifndef SS_TEXT_H
 #define SS_TEXT_H
 
-#include "bn_sprite_text_generator.h"
-#include "bn_string_view.h"
-#include "bn_vector.h"
+#include "ss_base.h"
 
-namespace ss
+#define TEXT_ROWS 20
+#define TEXT_PITCH 6
+
+typedef enum
 {
+    TEXT_WHITE,
+    TEXT_YELLOW,
+    TEXT_CYAN,
+    TEXT_RED
+} text_color;
 
-enum class text_color : unsigned char
-{
-    WHITE,
-    YELLOW,
-    CYAN,
-    RED
-};
+void text_init(void);
+void text_clear_all(void);
+void text_clear_row(int row);
 
-/**
- * Owns the sprite text generator (8x8 original font, 6 px pitch) and offers small helpers.
- * Text is built from sprites; callers keep the generated sprites in a bn::vector and clear it to
- * erase the text.
- */
-class text
-{
+/* Draws a string whose first character starts at pixel x (0..239) of a row. */
+void text_print(int row, int x, const char* s, text_color color);
 
-public:
-    text();
+/* Horizontally centred on the screen. */
+void text_center(int row, const char* s, text_color color);
 
-    /// Horizontally centred text; y is the top edge in Butano coordinates.
-    template<int MaxSprites>
-    void centered(int y, const bn::string_view& str, bn::vector<bn::sprite_ptr, MaxSprites>& out,
-                  text_color color = text_color::WHITE)
-    {
-        _prepare(color, bn::sprite_text_generator::alignment_type::CENTER);
-        _generator.generate(0, y + 4, str, out);
-    }
+int text_width(const char* s);
 
-    template<int MaxSprites>
-    void left(int x, int y, const bn::string_view& str, bn::vector<bn::sprite_ptr, MaxSprites>& out,
-              text_color color = text_color::WHITE)
-    {
-        _prepare(color, bn::sprite_text_generator::alignment_type::LEFT);
-        _generator.generate(x, y + 4, str, out);
-    }
+/* Copies changed rows to VRAM (call in VBlank). */
+void text_commit(void);
 
-    template<int MaxSprites>
-    void right(int x, int y, const bn::string_view& str, bn::vector<bn::sprite_ptr, MaxSprites>& out,
-               text_color color = text_color::WHITE)
-    {
-        _prepare(color, bn::sprite_text_generator::alignment_type::RIGHT);
-        _generator.generate(x, y + 4, str, out);
-    }
+/* ----- small string helpers (no printf on the GBA side) ------------------------------------------ */
 
-    [[nodiscard]] int width(const bn::string_view& str) const
-    {
-        return _generator.width(str);
-    }
-
-    static constexpr int char_width = 6;
-
-private:
-    bn::sprite_text_generator _generator;
-
-    void _prepare(text_color color, bn::sprite_text_generator::alignment_type alignment);
-};
-
-/// Formats an unsigned number with leading zeros ("0001230").
-void format_number(int value, int digits, bn::istring& out);
-
-}
+/* Appends a number with leading zeros to at least `digits` digits. Returns the new end of `out`. */
+char* text_append_number(char* out, int value, int digits);
+char* text_append(char* out, const char* s);
 
 #endif

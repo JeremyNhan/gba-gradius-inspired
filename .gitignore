@@ -2,10 +2,13 @@
 /build/
 /build_debug/
 /build_profile/
+/build_test/
 *.elf
 *.elf.*
 spaceshooter_debug.gba
 spaceshooter_profile.gba
+spaceshooter_test.gba
+*.map
 *.sav
 *.ss[0-9]
 
@@ -16,5 +19,6 @@ spaceshooter_profile.gba
 /tests/out/
 
 # local tools
+/tools/assetgen/bin/
 /tools/emulator/
 __pycache__/

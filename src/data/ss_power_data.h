@@ -1,72 +1,66 @@
+/*
+ * The power ladder. Every power capsule advances the player one step; powers are cumulative by slot
+ * (the main gun is upgraded in place, missiles become homing, the rest is added on top). Losing a
+ * ship resets the ladder to POWER_NORMAL.
+ */
 #ifndef SS_POWER_DATA_H
 #define SS_POWER_DATA_H
 
-namespace ss
-{
+#include "ss_base.h"
 
-/**
- * The power ladder. Every power capsule advances the player one step; powers are cumulative by slot
- * (the main gun is upgraded in place, missiles become homing, the rest is added on top). Losing a
- * ship resets the ladder to NORMAL.
- */
-enum class power_step : unsigned char
+typedef enum
 {
-    NORMAL,             // start: single forward shot
-    HOMING_DOT,         // + small homing dot fired with the main gun
-    MISSILE,            // + forward missiles
-    LASER,              // main gun -> piercing laser
-    SHIELD,             // + 3-hit shield (granted once when the step is reached)
-    SPREAD_LASER,       // main gun -> three-way laser
-    SHOOTER_1,          // + one additional shooter (trailing drone)
-    SHOOTER_2,          // + a second additional shooter
-    HOMING_MISSILE,     // missiles fire in pairs and home in
-    SHOCKWAVE           // + periodic shockwave: clears enemies and bullets, 0.5 s invulnerability
-};
+    POWER_NORMAL,           /* start: single forward shot */
+    POWER_HOMING_DOT,       /* + small homing dot fired with the main gun */
+    POWER_MISSILE,          /* + forward missiles */
+    POWER_LASER,            /* main gun -> piercing laser */
+    POWER_SHIELD,           /* + 3-hit shield (granted once when the step is reached) */
+    POWER_SPREAD_LASER,     /* main gun -> three-way laser */
+    POWER_SHOOTER_1,        /* + one additional shooter (trailing drone) */
+    POWER_SHOOTER_2,        /* + a second additional shooter */
+    POWER_HOMING_MISSILE,   /* missiles fire in pairs and home in */
+    POWER_SHOCKWAVE         /* + periodic shockwave: clears enemies and bullets, 0.5 s invulnerability */
+} power_step;
 
-constexpr int max_power = int(power_step::SHOCKWAVE);
+#define MAX_POWER POWER_SHOCKWAVE
 
-enum class main_gun : unsigned char
+typedef enum
 {
-    NORMAL,
-    LASER,
-    SPREAD_LASER
-};
+    GUN_NORMAL,
+    GUN_LASER,
+    GUN_SPREAD_LASER
+} main_gun;
 
-enum class missile_mode : unsigned char
+typedef enum
 {
-    NONE,
-    FORWARD,
-    HOMING
-};
+    MISSILES_NONE,
+    MISSILES_FORWARD,
+    MISSILES_HOMING
+} missile_mode;
 
-[[nodiscard]] constexpr bool has_power(int power, power_step step)
+static inline bool has_power(int power, power_step step)
 {
-    return power >= int(step);
+    return power >= (int) step;
 }
 
-[[nodiscard]] constexpr main_gun main_gun_of(int power)
+static inline main_gun main_gun_of(int power)
 {
-    return has_power(power, power_step::SPREAD_LASER) ? main_gun::SPREAD_LASER :
-           has_power(power, power_step::LASER) ? main_gun::LASER : main_gun::NORMAL;
+    return has_power(power, POWER_SPREAD_LASER) ? GUN_SPREAD_LASER :
+           has_power(power, POWER_LASER) ? GUN_LASER : GUN_NORMAL;
 }
 
-[[nodiscard]] constexpr missile_mode missile_mode_of(int power)
+static inline missile_mode missile_mode_of(int power)
 {
-    return has_power(power, power_step::HOMING_MISSILE) ? missile_mode::HOMING :
-           has_power(power, power_step::MISSILE) ? missile_mode::FORWARD : missile_mode::NONE;
+    return has_power(power, POWER_HOMING_MISSILE) ? MISSILES_HOMING :
+           has_power(power, POWER_MISSILE) ? MISSILES_FORWARD : MISSILES_NONE;
 }
 
-[[nodiscard]] constexpr int shooter_count_of(int power)
+static inline int shooter_count_of(int power)
 {
-    return has_power(power, power_step::SHOOTER_2) ? 2 : has_power(power, power_step::SHOOTER_1) ? 1 : 0;
+    return has_power(power, POWER_SHOOTER_2) ? 2 : has_power(power, POWER_SHOOTER_1) ? 1 : 0;
 }
 
-/// Banner shown when a step is reached (index = new power value).
-constexpr const char* power_names[max_power + 1] = {
-    "NORMAL SHOT", "HOMING DOT", "MISSILE", "LASER", "SHIELD", "SPREAD LASER", "SHOOTER", "2 SHOOTERS",
-    "HOMING MISSILE", "SHOCKWAVE"
-};
-
-}
+/* Label shown when a step is reached (index = new power value). */
+extern const char* const power_names[MAX_POWER + 1];
 
 #endif

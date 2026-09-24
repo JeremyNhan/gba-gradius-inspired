@@ -1,65 +1,28 @@
+/* Power capsules: dropped by destroyed enemies, each one advances the power ladder by one step. */
 #ifndef SS_POWERUPS_H
 #define SS_POWERUPS_H
 
-#include "bn_fixed_point.h"
-#include "bn_optional.h"
-#include "bn_sprite_ptr.h"
+#include "ss_base.h"
 
-#include "ss_collision.h"
-#include "ss_constants.h"
-#include "ss_pool.h"
-
-namespace ss
+typedef struct
 {
+    bool active;
+    vec2 pos;
+    int timer;
+} powerup;
 
-class world;
+extern powerup powerups[MAX_POWERUPS];
 
-struct powerup
+void powerups_reset(void);
+void powerups_drop(vec2 pos);
+void powerups_collect(powerup* p);
+void powerups_update(void);
+void powerups_render(void);
+int powerups_count(void);
+
+static inline hitbox powerup_box(const powerup* p)
 {
-    bool active = false;
-    bn::fixed_point position;
-    int timer = 0;
-    int frame = -1;
-    bn::optional<bn::sprite_ptr> sprite;
-
-    void clear()
-    {
-        active = false;
-        sprite.reset();
-    }
-
-    [[nodiscard]] hitbox box() const
-    {
-        return make_hitbox(position, 6, 6);
-    }
-};
-
-class powerups
-{
-
-public:
-    /// Drops a power capsule (enemies roll their drop chance before calling this).
-    void drop(world& w, const bn::fixed_point& position);
-
-    void update(world& w);
-
-    /// Advances the player one step on the power ladder (at the top: shield refill and bonus score).
-    void collect(world& w, powerup& item);
-
-    pool<powerup, max_powerups>& items()
-    {
-        return _pool;
-    }
-
-    [[nodiscard]] int count() const
-    {
-        return _pool.count();
-    }
-
-private:
-    pool<powerup, max_powerups> _pool;
-};
-
+    return make_hitbox(p->pos, 6, 6);
 }
 
 #endif

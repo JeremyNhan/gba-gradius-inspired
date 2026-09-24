@@ -1,64 +1,30 @@
+/*
+ * Top-level state machine (docs/architecture.md, section 3). Each state has one update handler
+ * returning the next state; app_enter() performs the transition side effects.
+ */
 #ifndef SS_APP_H
 #define SS_APP_H
 
-#include "bn_optional.h"
-#include "bn_sprite_ptr.h"
-#include "bn_vector.h"
+#include "ss_base.h"
 
-#include "ss_ending_screen.h"
-#include "ss_game_state.h"
-#include "ss_session.h"
-#include "ss_text.h"
-#include "ss_title_screen.h"
-#include "ss_world.h"
-
-namespace ss
+typedef enum
 {
+    STATE_TITLE,
+    STATE_PLAYING,
+    STATE_PAUSED,
+    STATE_STAGE_CLEAR,
+    STATE_GAME_OVER,
+    STATE_ENDING
+} game_state;
 
-/**
- * Top-level state machine (see docs/architecture.md, section 3).
- *
- * Each state has one update handler returning the next state; _enter() performs the transition
- * side effects (creating/destroying screens and the world, music, overlays). Only one heavy
- * screen object exists at a time, so VRAM/OAM are never shared between screens.
- */
-class app
-{
+void app_init(void);
+void app_update(void);
+game_state app_state(void);
 
-public:
-    app();
-
-    void update();
-
-private:
-    game_state _state = game_state::TITLE;
-    text _text;
-    session _session;
-    int _saved_hiscore = 0;
-    bn::optional<title_screen> _title;
-    bn::optional<world> _world;
-    bn::optional<ending_screen> _ending;
-    bn::vector<bn::sprite_ptr, 24> _overlay;
-    int _timer = 0;
-    int _fade_in = 0;           // frames left of the palette fade-in after a screen change
-    int _fade_out = 0;          // frames of the stage-clear fade-out done so far
-    bool _final_clear = false;
-
-    static constexpr int fade_frames = 16;
-
-    void _update_fade();
-
-    [[nodiscard]] game_state _update_title();
-    [[nodiscard]] game_state _update_playing();
-    [[nodiscard]] game_state _update_paused();
-    [[nodiscard]] game_state _update_stage_clear();
-    [[nodiscard]] game_state _update_game_over();
-    [[nodiscard]] game_state _update_ending();
-
-    void _enter(game_state next);
-    void _save_hiscore();
-};
-
-}
+#if SS_TESTS
+/* Test driver: jump straight into a new game at a stage (skips the title). */
+void app_start_game(int stage);
+void app_go_to_title(void);
+#endif
 
 #endif

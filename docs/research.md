@@ -1,5 +1,24 @@
 # Research Report — GBA Development (Phase 1)
 
+> **Update (C rewrite, v0.0.3-beta):** the game no longer uses Butano, Python or Lua test logic. Section 0 records the decisions for the C version; sections 1-8 are the original Phase 1 research, kept for reference (the hardware facts in section 3 still apply).
+
+## 0. C rewrite (2026-09-24)
+
+| Topic | Decision |
+|---|---|
+| Language / libraries | C (gnu11) on **libtonc** (register and memory definitions, BIOS calls, sine table) + **Maxmod** (music/effects mixing), both installed by devkitPro's `gba-dev` group **(verified: `/c/devkitPro/libtonc`, `libgba/lib/libmm.a`)** |
+| Build | devkitPro's `gba_rules` Makefile template (as in `/c/devkitPro/examples/gba/template`), extended with a first pass that builds and runs the host asset generator |
+| Asset pipeline | `tools/assetgen`, host C built with MSYS2 `gcc` (`pacman -S gcc`). It writes GBA-ready C arrays directly (no grit), plus MOD/WAV for `mmutil`. **(verified)** Its output is byte-identical to the former Python generator for all 40 images and 23 audio files |
+| Rounding | The art uses Python's `round()` (round half to even); C uses `nearbyint()` in the default rounding mode, and Python's `%` on negative numbers is reproduced with a helper |
+| Sprites | Shadow OAM rebuilt every frame and copied in VBlank with `oam_copy` ([tonc: sprites](https://gbadev.net/tonc/regobj.html)) |
+| Text | BG0 text with a 6 px pitch rendered into per-row tiles (a fixed 8x8 tile font would not fit the 33-character HUD line) |
+| Fades | Hardware brightness (`REG_BLDCNT` + `REG_BLDY`, [tonc: blending](https://gbadev.net/tonc/gfx.html)) instead of palette recomputation |
+| Wait states | `REG_WAITCNT = WS_STANDARD` (0x4317: ROM 3/1 + prefetch, SRAM 8 cycles; [GBATEK: waitstate control](https://mgba-emu.github.io/gbatek/)). **(verified)** Without it the full playthrough averaged 42 % CPU; with it, 29 % |
+| Audio | `mmInitDefault(soundbank, 8)`, `mmVBlank` in the VBlank interrupt, `mmFrame` once per frame, as in devkitPro's `examples/gba/audio/maxmod/basic_sound` |
+| Save | Byte-wise SRAM access (8-bit bus) + a `SRAM_V113` string in the ROM for save-type detection |
+| Tests | Scenarios in C inside a test ROM (protothread-style macros, injected keys). mGBA scripting is Lua-only, so a 30-line Lua launcher remains, for screenshots and saving the log ([mGBA scripting](https://mgba.io/docs/scripting.html)) |
+| Licenses | libtonc: MIT ([gbadev-org/libtonc](https://github.com/gbadev-org/libtonc)); some devkitPro headers derived from libgba carry LGPL notices ([tonc_libgba.h](https://github.com/devkitPro/libtonc/blob/master/include/tonc_libgba.h)). Maxmod: ISC ([devkitPro/maxmod](https://github.com/devkitPro/maxmod)) |
+
 Date: 2026-09-24. Everything marked **(verified)** was checked on this machine, not just read about.
 
 ## 1. Summary of decisions

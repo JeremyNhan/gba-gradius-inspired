@@ -1,57 +1,55 @@
+/*
+ * Music and sound effects through Maxmod (music: generated 4-channel MODs, effects: 8-bit WAVs,
+ * both packed into the soundbank by mmutil at build time).
+ */
 #ifndef SS_AUDIO_H
 #define SS_AUDIO_H
 
-namespace ss::audio
+#include "ss_base.h"
+
+typedef enum
 {
+    SFX_SHOT_ID,
+    SFX_SPREAD_ID,
+    SFX_MISSILE_ID,
+    SFX_CHARGE_READY_ID,
+    SFX_BEAM_ID,
+    SFX_HIT_ID,
+    SFX_EXPLODE_ID,
+    SFX_EXPLODE_BIG_ID,
+    SFX_PICKUP_ID,
+    SFX_POWER_MAX_ID,       /* reaching the top of the power ladder */
+    SFX_PLAYER_DEATH_ID,
+    SFX_WARNING_ID,
+    SFX_SELECT_ID,
+    SFX_PAUSE_ID,
+    SFX_SHIELD_HIT_ID,
+    SFX_COUNT
+} sfx_id;
 
-enum class sfx : unsigned char
+typedef enum
 {
-    SHOT,
-    SPREAD,
-    MISSILE,
-    CHARGE_READY,
-    BEAM,
-    HIT,
-    EXPLODE,
-    EXPLODE_BIG,
-    PICKUP,
-    POWER_MAX,      // reaching the top of the power ladder
-    PLAYER_DEATH,
-    WARNING,
-    SELECT,
-    PAUSE,
-    SHIELD_HIT,
-    COUNT
-};
+    MUSIC_TITLE,
+    MUSIC_STAGE1,
+    MUSIC_STAGE2,
+    MUSIC_STAGE3,
+    MUSIC_BOSS,
+    MUSIC_ENDING,
+    MUSIC_JINGLE_CLEAR,
+    MUSIC_JINGLE_GAME_OVER,
+    MUSIC_NONE
+} music_id;
 
-enum class music : unsigned char
-{
-    TITLE,
-    STAGE1,
-    STAGE2,
-    STAGE3,
-    BOSS,
-    ENDING,
-    JINGLE_CLEAR,
-    JINGLE_GAME_OVER,
-    NONE
-};
+void audio_init(void);
 
-/// Plays a sound effect. Frequent effects are rate-limited so they don't monopolise Maxmod's
-/// 4 SFX channels (BN_CFG_AUDIO_MAX_SOUND_CHANNELS).
-void play(sfx effect);
+/* Once per frame (after VBlank): Maxmod mixing and effect cooldowns. */
+void audio_frame(void);
 
-void play_music(music track);
-
-void stop_music();
-
-void pause_music();
-
-void resume_music();
-
-/// Call once per frame (cooldown bookkeeping).
-void update();
-
-}
+void audio_play(sfx_id id);
+void audio_play_music(music_id id);
+void audio_stop_music(void);
+void audio_pause_music(void);
+void audio_resume_music(void);
+bool audio_music_playing(void);     /* playing and not paused */
 
 #endif

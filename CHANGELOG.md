@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.3-beta (unreleased)
+
+Rewrite in C. Same game, same content, same art and music.
+
+* Game code: C on libtonc + Maxmod instead of C++ on Butano. Sprites are rebuilt into a shadow OAM every frame, text is drawn into BG0 tiles, and fades use the hardware brightness registers.
+* Faster: average CPU 29 % (was 31 %), worst frame 74 % (was 85 %), no missed gameplay frames. The ROM is 253 KB (was 328 KB).
+* Asset generator rewritten in C (`tools/assetgen`); its output is byte-identical to the former Python generator. Python is no longer needed to build.
+* Tests rewritten in C and built into a test ROM (`make TESTS=1`); a 30-line Lua launcher remains for mGBA. 91 checks over two boots.
+* Hit flashes strobe instead of staying solid white under constant fire.
+* The Butano submodule is removed.
+
 ## v0.0.2-beta (2026-09-24)
 
 * **Power ladder** replaces the six capsule types: every destroyed enemy has a chance to drop a P capsule (from 3 % for small asteroids to 100 % for gunships), and each capsule advances one step: normal shot → homing dot → missile → laser → shield → spread laser → shooter → 2 shooters → homing missile → shockwave. Losing a ship resets to the normal shot.

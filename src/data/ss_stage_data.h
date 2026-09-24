@@ -1,87 +1,74 @@
 #ifndef SS_STAGE_DATA_H
 #define SS_STAGE_DATA_H
 
-#include "bn_fixed.h"
-#include "bn_span.h"
-
 #include "ss_audio.h"
-#include "ss_backgrounds.h"
-#include "ss_enemy_data.h"
+#include "ss_base.h"
+#include "ss_video.h"
 
-namespace ss
+typedef enum
 {
+    EVENT_SPAWN,            /* a = enemy_kind, b = y, c = param, d = flags */
+    EVENT_FORMATION,        /* a = formation_type, b = y, c = count, d = flags */
+    EVENT_SCROLL_SPEED,     /* b = speed in 1/100 px per frame */
+    EVENT_WARNING,          /* boss warning banner + siren */
+    EVENT_BOSS              /* a = boss_id */
+} event_type;
 
-enum class event_type : unsigned char
+typedef enum
 {
-    SPAWN,          // a = enemy_kind, b = y, c = param, d = flags
-    FORMATION,      // a = formation_type, b = y, c = count, d = flags
-    SCROLL_SPEED,   // b = speed in 1/100 px per frame
-    WARNING,        // boss warning banner + siren + boss music
-    BOSS,           // a = boss_id
-};
+    FORMATION_LINE,         /* darts in a horizontal line (one after another) */
+    FORMATION_V,            /* darts in a V */
+    FORMATION_COLUMN,       /* darts in a vertical column */
+    FORMATION_WAVE,         /* wavers following each other */
+    FORMATION_SWARM_LOOP,   /* swarm drones looping */
+    FORMATION_MINE_FIELD    /* mines scattered vertically */
+} formation_type;
 
-enum class formation_type : unsigned char
+typedef enum
 {
-    LINE,           // darts in a horizontal line (one after another)
-    V,              // darts in a V
-    COLUMN,         // darts in a vertical column
-    WAVE,           // wavers following each other
-    SWARM_LOOP,     // swarm drones looping
-    MINE_FIELD      // mines scattered vertically
-};
+    BOSS_WARDEN,
+    BOSS_HIVE,
+    BOSS_OVERMIND
+} boss_id;
 
-enum class boss_id : unsigned char
+/* Spawn flags. */
+#define FLAG_BONUS 1        /* bonus formation: +500 when every member is destroyed */
+#define FLAG_CEILING 2      /* turret mounted on the ceiling */
+#define FLAG_FROM_LEFT 4    /* enters from the left edge */
+
+typedef struct
 {
-    WARDEN,
-    HIVE,
-    OVERMIND
-};
+    u16 frame;
+    u8 type;                /* event_type */
+    u8 a;
+    s16 b;
+    s16 c;
+    s16 d;
+} stage_event;
 
-// Spawn flags.
-constexpr short flag_carrier = 1;       // bonus formation: +500 when every member is destroyed
-constexpr short flag_ceiling = 2;       // turret mounted on the ceiling
-constexpr short flag_from_left = 4;     // enters from the left edge
-
-struct stage_event
+/* Terrain key point: at world column `column` (8 px), ceiling/floor are this many tiles thick.
+ * Heights are linearly interpolated between keys. */
+typedef struct
 {
-    unsigned short frame;
-    event_type type;
-    unsigned char a;
-    short b;
-    short c;
-    short d;
-};
+    s16 column;
+    s8 ceiling;
+    s8 floor;
+} terrain_key;
 
-/// Terrain key point: at world column `column` (8 px), ceiling/floor are this many tiles thick.
-/// Heights are linearly interpolated between keys.
-struct terrain_key
-{
-    short column;
-    signed char ceiling;
-    signed char floor;
-};
-
-enum class terrain_style : unsigned char
-{
-    NONE,
-    CRYSTAL,
-    METAL
-};
-
-struct stage_def
+typedef struct
 {
     const char* name;
     const char* subtitle;
-    backdrop_type backdrop;
-    terrain_style terrain;
-    audio::music music;
-    bn::fixed scroll_speed;
-    bn::span<const stage_event> events;
-    bn::span<const terrain_key> terrain_keys;
-};
+    u8 backdrop;            /* backdrop_type */
+    s8 terrain_style;       /* -1 none, 0 crystal, 1 metal */
+    u8 music;               /* music_id */
+    fx scroll_speed;
+    const stage_event* events;
+    int event_count;
+    const terrain_key* terrain;
+    int terrain_count;
+} stage_def;
 
-[[nodiscard]] const stage_def& stage_definition(int stage_index);
-
-}
+const stage_def* stage_definition(int stage);
 
 #endif

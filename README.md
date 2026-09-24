@@ -1,10 +1,12 @@
 # Space Shooter
 
-An original horizontal shoot-'em-up for the **Game Boy Advance**, built on [Butano](https://github.com/GValiente/butano) and devkitARM. It has three scrolling stages, nine enemy types, a 10-step power ladder fed by random capsule drops (lasers, homing weapons, trailing shooters, a periodic shockwave), three multi-phase bosses, an ending, and a saved high score. It is designed around real GBA hardware limits: 240×160, 128 sprites, 32 KB OBJ VRAM, fixed-point math, no heap during gameplay.
+An original horizontal shoot-'em-up for the **Game Boy Advance**, written in **C** on [libtonc](https://github.com/devkitPro/libtonc) and Maxmod with devkitARM. It has three scrolling stages, nine enemy types, a 10-step power ladder fed by random capsule drops (lasers, homing weapons, trailing shooters, a periodic shockwave), three multi-phase bosses, an ending, and a saved high score. It is designed around real GBA hardware limits: 240×160, 128 sprites, 32 KB OBJ VRAM, fixed-point math, no heap.
 
-![Title](docs/img/title.png) ![Stage 2](docs/img/stage2.png) ![Spread laser with two shooters](docs/img/power.png) ![Final boss](docs/img/boss3.png)
+Everything is C: the game, the asset generator that draws every sprite, background, song and sound effect, and the automated test scenarios. The only non-C pieces are a 30-line Lua launcher for the mGBA emulator and the Windows build/test scripts.
 
-Output: **`spaceshooter.gba`** (≈ 328 KB) in the repository root. Current version: **v0.0.2-beta**. Download the ROM from the [Releases](https://github.com/JeremyNhan/gba-gradius-inspired/releases) page; changes are listed in [CHANGELOG.md](CHANGELOG.md).
+![Title](docs/img/title.png) ![Stage 2](docs/img/stage2.png) ![Spread laser with two shooters](docs/img/power.png) ![Stage 1 boss](docs/img/boss.png)
+
+Output: **`spaceshooter.gba`** (≈ 253 KB) in the repository root. Version **v0.0.3-beta** (C rewrite). Released ROMs are on the [Releases](https://github.com/JeremyNhan/gba-gradius-inspired/releases) page; changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Controls
 
@@ -25,43 +27,39 @@ Losing a ship resets you to the normal shot. Gameplay, the power ladder, enemies
 
 ### Prerequisites (Windows, native, no WSL needed)
 
-1. **devkitPro**: run the installer from <https://github.com/devkitPro/installer/releases>, install to `C:\devkitPro`, tick **GBA Development**. Alternatively, from the devkitPro MSYS2 shell: `pacman -S gba-dev`. Tested with devkitARM r68 (GCC 16.1).
-2. **Python 3** from python.org (tick "Add to PATH"). The Windows Store `python` alias is not enough; `build.ps1` finds the real interpreter via `py -3`.
-3. **Git**, then fetch the Butano submodule (pinned to 21.8.0):
-   ```powershell
-   git clone --recursive <repo-url>
-   # or, in an existing clone:
-   git submodule update --init
-   ```
+1. **devkitPro**: run the installer from <https://github.com/devkitPro/installer/releases>, install to `C:\devkitPro`, tick **GBA Development** (devkitARM, libtonc, Maxmod). Or, from the devkitPro MSYS2 shell: `pacman -S gba-dev`. Tested with devkitARM r68 (GCC 16.1).
+2. **Host C compiler** for the asset generator, in the devkitPro MSYS2 shell: `pacman -S gcc`.
+3. **Git** to clone the repository. There are no submodules and nothing else to install.
 
 ### Build
 
 ```powershell
-.\build.ps1                # release   -> spaceshooter.gba
-.\build.ps1 -DebugBuild    # debug     -> spaceshooter_debug.gba
-.\build.ps1 -ProfileBuild  # release code + test hooks -> spaceshooter_profile.gba
+.\build.ps1                # release -> spaceshooter.gba
+.\build.ps1 -DebugBuild    # debug   -> spaceshooter_debug.gba
+.\build.ps1 -TestBuild     # tests   -> spaceshooter_test.gba (release code + test scenarios)
 .\build.ps1 -Run           # build, then open in mGBA
 .\build.ps1 -Clean
 ```
 
-The makefiles cannot handle paths containing spaces. `build.ps1` therefore maps the repository to a free drive letter with `subst` for the duration of the build, so the repo can live anywhere.
+The devkitPro makefiles cannot handle paths containing spaces. `build.ps1` maps the repository to a free drive letter with `subst` for the duration of the build, so the repo can live anywhere.
 
 ### Linux / macOS / MSYS2 shell
 
-Install devkitPro pacman and `gba-dev`, set `DEVKITPRO`/`DEVKITARM`, clone into a path **without spaces**, then:
+Install devkitPro pacman and `gba-dev`, set `DEVKITPRO`/`DEVKITARM`, have `gcc` (or `cc`) available, clone into a path **without spaces**, then:
 
 ```sh
 ./build.sh          # or: make -j$(nproc)
-make DEBUG=1        # debug ROM
+./build.sh DEBUG=1  # debug ROM
+./build.sh TESTS=1  # test ROM
 ```
 
 ### Asset pipeline
 
-Every graphic and sound is generated from code in `tools/` (Python standard library only): pixel art, palettes, font, backgrounds, MOD music, and WAV effects. The Makefile runs `tools/gen_assets.py` before each build, which writes `assets/generated/` (indexed BMP + JSON, `.mod`, `.wav`). Butano's grit/mmutil then convert those into ROM data. No binary assets are committed. To preview the art as PNG: `py -3 tools/gen_assets.py --preview preview/`.
+Every graphic and sound is generated by `tools/assetgen/`, a small host C program: pixel-art drawing code, palettes, the font, backgrounds, MOD music and synthesized WAV effects. The Makefile builds it and runs it before each build. It writes `assets/generated/gen_gfx.c` (4bpp tiles, deduplicated background tiles and maps, BGR555 palettes) and `assets/generated/audio/`. Maxmod's `mmutil` then packs the audio into a soundbank. No binary assets are committed. To look at the art: `tools/assetgen/bin/assetgen assets/generated --dump preview/` writes every image as a PGM file of palette indices.
 
 ## Running
 
-Open `spaceshooter.gba` in [mGBA](https://mgba.io) (0.10.5 stable or newer), or any accurate GBA emulator. For real hardware, copy it to a flash cart and select **SRAM** as save type (the high score is stored in 32 KB SRAM).
+Open `spaceshooter.gba` in [mGBA](https://mgba.io) (0.10.5 stable or newer), or any accurate GBA emulator. For real hardware, copy it to a flash cart and select **SRAM** as the save type (the high score is stored in 32 KB SRAM).
 
 ## Debug build
 
@@ -70,16 +68,22 @@ Open `spaceshooter.gba` in [mGBA](https://mgba.io) (0.10.5 stable or newer), or 
 * **SELECT**: overlay with CPU %, enemy/bullet/shot counts, sprites in use, stage frame
 * **L / R** on the title screen: choose the starting stage
 * **L + R** in game: skip to the stage boss
-* Butano asserts and mGBA log output
 
 None of this is compiled into the release ROM.
 
 ## Testing
 
-Automated tests drive the real ROMs in mGBA with Lua scripts. They inject input, read a telemetry block in RAM, and take screenshots. They cover boot, title, controls, pause, collisions, every step of the power ladder and the shockwave, death/respawn/game over, a complete playthrough of all three stages and bosses, the ending, high-score save and reload, and CPU/sprite/VRAM budgets.
+The test scenarios are C code built into a test ROM. They inject input into the real game, check its state, and write a result log. A 30-line Lua launcher in mGBA saves that log and the requested screenshots. The scenarios cover:
+
+* boot, title, controls, pause and collisions;
+* every step of the power ladder and the shockwave;
+* death, respawn and game over;
+* a complete playthrough of all three stages and bosses to the ending;
+* high-score save and reload across an emulator restart;
+* CPU and sprite budgets.
 
 ```powershell
-.\tests\run_all.ps1   # builds all 3 ROMs, runs 6 suites (121 checks)
+.\tests\run_tests.ps1   # builds the test ROM, runs 5 suites over two boots (91 checks)
 ```
 
 This needs the mGBA **nightly** build (for `--script`) in `tools\emulator\` or `$env:MGBA`. See [docs/testing.md](docs/testing.md) for the checklist and measurements.
@@ -88,10 +92,10 @@ This needs the mGBA **nightly** build (for `--script`) in `tools\emulator\` or `
 
 | | |
 |---|---|
-| Build | PASS (release, debug, profile) |
+| Build | PASS (release, debug, test; no compiler warnings) |
 | Target | Game Boy Advance (ARM7TDMI, Mode 0, 4bpp sprites, Maxmod audio, SRAM save) |
-| Frame rate | 59.73 Hz (hardware refresh), 0 missed frames in a full playthrough; average CPU 31 %, worst frame 85 % |
-| Tests | 121/121 automated checks passing in mGBA |
+| Frame rate | 59.73 Hz (hardware refresh), 0 missed gameplay frames in a full playthrough; average CPU 29 %, worst frame 74 % |
+| Tests | 91/91 automated checks passing in mGBA |
 
 ### Known limitations
 
@@ -102,29 +106,29 @@ This needs the mGBA **nightly** build (for `--script`) in `tools\emulator\` or `
 * When a pool is full (for example 32 enemy bullets during dense boss phases), new spawns are dropped rather than overwriting anything.
 * Only the high score is saved; there is no continue or stage unlock.
 * Building requires a path without spaces (handled automatically by `build.ps1` on Windows).
-* The automated tests are Windows/PowerShell scripts and open a small mGBA window while running.
+* The test runner is a Windows/PowerShell script and opens a small mGBA window while running.
 
 ## Project layout
 
 ```
-src/            game code (C++20): app state machine, core/, game/, data/, screens/
-tools/          asset sources + generator (Python)
-tests/          mGBA Lua tests + PowerShell runners
-docs/           research.md, architecture.md, design.md, testing.md
-external/butano Butano engine (git submodule, 21.8.0)
+src/              game code (C): main loop, state machine, core/ (hardware layer), game/, data/, screens/
+src/test/         test driver and scenarios (test ROM only)
+tools/assetgen/   asset generator (host C)
+tests/            mGBA launcher (Lua) and test runner (PowerShell)
+docs/             research.md, architecture.md, design.md, testing.md
 ```
 
 Architecture: [docs/architecture.md](docs/architecture.md). Research and sources: [docs/research.md](docs/research.md).
 
 ## Credits
 
-* Game design, code, pixel art, music and sound: original work for this project (all assets are generated by `tools/`).
-* Engine: [Butano](https://github.com/GValiente/butano) by Gustavo Valiente (zlib license); its bundled third-party code is listed in `external/butano/licenses`.
-* Audio: Maxmod (devkitPro `maxmod-gba`).
+* Game design, code, pixel art, music and sound: original work for this project (all assets are generated by `tools/assetgen`).
+* Libraries: [libtonc](https://github.com/devkitPro/libtonc) (MIT; a few headers derived from libgba carry LGPL notices) and [Maxmod](https://github.com/devkitPro/maxmod) (ISC), both from devkitPro.
 * Toolchain: [devkitPro / devkitARM](https://devkitpro.org).
 * Reference documentation: [tonc](https://gbadev.net/tonc/), [GBATEK](https://mgba-emu.github.io/gbatek/), [mGBA](https://mgba.io).
+* Versions up to v0.0.2-beta were built on [Butano](https://github.com/GValiente/butano) (C++).
 * Inspired by the gameplay structure of classic 16-bit horizontal shooters; no assets, names or layouts from any existing game are used.
 
 ## License
 
-Code and generated assets: MIT, see [LICENSE](LICENSE). Butano and its bundled libraries keep their own licenses.
+Code and generated assets: MIT, see [LICENSE](LICENSE). libtonc and Maxmod keep their own licenses.

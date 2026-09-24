@@ -1,115 +1,57 @@
 #ifndef SS_ENEMIES_H
 #define SS_ENEMIES_H
 
-#include "bn_fixed_point.h"
-#include "bn_optional.h"
-#include "bn_sprite_ptr.h"
-
-#include "ss_collision.h"
-#include "ss_constants.h"
+#include "ss_base.h"
 #include "ss_enemy_data.h"
-#include "ss_pool.h"
-#include "ss_stage_data.h"
 
-namespace ss
+typedef struct
 {
+    bool active;
+    bool entered;           /* has been fully on screen at least once */
+    u8 kind;                /* enemy_kind */
+    u8 frame;
+    s8 formation;
+    s16 flags;
+    vec2 pos;
+    vec2 vel;
+    fx base_y;
+    int hp;
+    int timer;
+    int fire_timer;
+    int param;
+    int phase;
+    int angle;
+    int burst;
+    int flash;
+} enemy;
 
-class world;
+extern enemy enemies[MAX_ENEMIES];
 
-struct enemy
+void enemies_reset(void);
+void enemies_spawn(enemy_kind kind, fx x, fx y, int param, int flags, int formation);
+void enemies_spawn_formation(int type, int y, int count, int flags);
+void enemies_update(void);
+void enemies_render(void);
+
+/* Damage from a player projectile; destroys the enemy when its HP runs out. */
+void enemies_damage(enemy* e, int amount);
+
+/* Removes an enemy with an explosion. by_player: score, capsule drop roll, mine burst. */
+void enemies_destroy(enemy* e, bool by_player);
+
+void enemies_destroy_all(void);     /* boss death: no score */
+void enemies_shockwave(void);       /* with score, without drops or mine bursts */
+
+/* Closest entered enemy ahead of `from` (homing weapons). */
+bool enemies_nearest_target(vec2 from, vec2* out);
+
+int enemies_count(void);
+int enemies_dropped(void);
+
+static inline hitbox enemy_box(const enemy* e)
 {
-    bool active = false;
-    bool entered = false;           // has been fully on screen at least once
-    enemy_kind kind = enemy_kind::DART;
-    const enemy_def* def = nullptr;
-    bn::fixed_point position;
-    bn::fixed_point velocity;
-    bn::fixed base_y;
-    int hp = 0;
-    int timer = 0;
-    int fire_timer = 0;
-    int param = 0;
-    int phase = 0;
-    int angle = 0;
-    int burst = 0;
-    int frame = -1;
-    int flash = 0;
-    short flags = 0;
-    signed char formation = -1;
-    bn::optional<bn::sprite_ptr> sprite;
-
-    void clear()
-    {
-        active = false;
-        sprite.reset();
-    }
-
-    [[nodiscard]] hitbox box() const;
-};
-
-class enemies
-{
-
-public:
-    void spawn(world& w, enemy_kind kind, bn::fixed x, bn::fixed y, int param, short flags, int formation = -1);
-
-    void spawn_formation(world& w, formation_type type, int y, int count, short flags);
-
-    void update(world& w);
-
-    /// Applies damage from a player projectile; destroys the enemy when its HP runs out.
-    void damage(world& w, enemy& target, int amount);
-
-    /// Removes an enemy with an explosion. by_player: award score/drops.
-    void destroy(world& w, enemy& target, bool by_player);
-
-    /// Closest on-screen enemy for homing missiles.
-    [[nodiscard]] bn::optional<bn::fixed_point> nearest_target(const bn::fixed_point& from) const;
-
-    pool<enemy, max_enemies>& items()
-    {
-        return _pool;
-    }
-
-    [[nodiscard]] int count() const
-    {
-        return _pool.count();
-    }
-
-    [[nodiscard]] int dropped() const
-    {
-        return _pool.dropped();
-    }
-
-    /// Destroys every enemy (used when a boss dies). No score is awarded.
-    /// Shockwave: destroys every enemy (with score, without drops or mine bursts).
-    void shockwave(world& w);
-
-    void destroy_all(world& w);
-
-private:
-    struct formation_info
-    {
-        bool used = false;
-        bool carrier = false;
-        int alive = 0;
-        int killed = 0;
-        int spawned = 0;
-    };
-
-    static constexpr int max_formations = 6;
-
-    pool<enemy, max_enemies> _pool;
-    formation_info _formations[max_formations];
-
-    int _alloc_formation(bool carrier);
-    void _leave(world& w, enemy& target);
-    void _formation_member_gone(world& w, enemy& target, bool killed);
-    void _move(world& w, enemy& e);
-    void _fire(world& w, enemy& e);
-    void _animate(world& w, enemy& e);
-};
-
+    const enemy_def* d = &enemy_defs[e->kind];
+    return make_hitbox(e->pos, d->half_w, d->half_h);
 }
 
 #endif

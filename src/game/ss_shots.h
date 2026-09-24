@@ -1,91 +1,44 @@
+/* Player projectiles: fixed pool; when it is full, new shots are simply not fired. */
 #ifndef SS_SHOTS_H
 #define SS_SHOTS_H
 
-#include "bn_fixed_point.h"
-#include "bn_optional.h"
-#include "bn_sprite_ptr.h"
-
-#include "ss_collision.h"
-#include "ss_constants.h"
-#include "ss_pool.h"
+#include "ss_base.h"
 #include "ss_weapon_data.h"
 
-namespace ss
+typedef struct
 {
+    bool active;
+    bool homing;            /* missiles and dots: steer toward the nearest target */
+    u8 kind;                /* shot_kind */
+    u8 frame;
+    vec2 pos;
+    vec2 vel;
+    int damage;
+    int angle;              /* missiles and dots: binary angle */
+    int life;
+    u32 hit_mask;           /* piercing shots: enemies already hit (bit per enemy slot) */
+    int boss_cooldown;      /* charged beam: frames until the boss can be hit again */
+} player_shot;
 
-class world;
+extern player_shot shots[MAX_PLAYER_SHOTS];
 
-struct player_shot
+void shots_reset(void);
+void shots_fire(shot_kind kind, vec2 pos, vec2 vel, int damage);
+void shots_fire_missile(vec2 pos, int angle, bool homing);
+void shots_fire_dot(vec2 pos);
+void shots_release(player_shot* s);
+void shots_update(void);
+void shots_render(void);
+
+int shots_count(void);
+int shots_count_of(shot_kind kind);
+int shots_dropped(void);
+
+hitbox shot_box(const player_shot* s);
+
+static inline bool shot_pierces(const player_shot* s)
 {
-    bool active = false;
-    shot_kind kind = shot_kind::NORMAL;
-    bn::fixed_point position;
-    bn::fixed_point velocity;
-    int damage = 0;
-    int angle = 0;              // missiles and dots: binary angle (65536 = turn), y-down
-    bool homing = false;        // missiles and dots: steer toward the nearest target
-    int frame = -1;
-    int life = 0;
-    unsigned hit_mask = 0;      // piercing shots: enemies already hit (bit per enemy slot)
-    int boss_cooldown = 0;      // charged beam: frames until the boss can be hit again
-    bn::optional<bn::sprite_ptr> sprite;
-
-    void clear()
-    {
-        active = false;
-        sprite.reset();
-    }
-
-    [[nodiscard]] hitbox box() const;
-
-    [[nodiscard]] bool pierces() const
-    {
-        return kind == shot_kind::BEAM || kind == shot_kind::LASER;
-    }
-};
-
-class player_shots
-{
-
-public:
-    void fire(world& w, shot_kind kind, const bn::fixed_point& position, const bn::fixed_point& velocity,
-              int damage);
-
-    void fire_missile(world& w, const bn::fixed_point& position, int angle, bool homing);
-
-    void fire_dot(world& w, const bn::fixed_point& position);
-
-    void update(world& w);
-
-    void release(player_shot& shot)
-    {
-        _pool.release(shot);
-    }
-
-    [[nodiscard]] int count() const
-    {
-        return _pool.count();
-    }
-
-    [[nodiscard]] int dropped() const
-    {
-        return _pool.dropped();
-    }
-
-    /// Active shots of one kind (caps for missiles and dots).
-    [[nodiscard]] int count_of(shot_kind kind) const;
-
-    pool<player_shot, max_player_shots>& items()
-    {
-        return _pool;
-    }
-
-private:
-    pool<player_shot, max_player_shots> _pool;
-
-    void _steer(world& w, player_shot& shot, int turn_rate, bn::fixed speed);
-};
-
+    return s->kind == SHOT_BEAM || s->kind == SHOT_LASER;
 }
 
 #endif
