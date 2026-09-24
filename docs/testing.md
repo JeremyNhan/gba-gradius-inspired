@@ -18,7 +18,7 @@ All scenarios and checks are **C code** compiled into a test ROM (`make TESTS=1`
 * `test_frame()` runs every frame before the game logic. The active scenario is a protothread: `T_WAIT(t, frames)` and `T_WAIT_UNTIL(t, condition, max_frames)` return to the game loop and resume on a later frame, so scenarios read like sequential scripts.
 * Scenarios drive the real game through `input_inject()` (the keypad is replaced by a key mask). They read game state directly (`game`, `world`, `app_state()`, pool counts). Where a feature needs it they use the test controls `test_ctl` (invincibility, autofire, set power level).
 * Checks and log lines go to a text buffer in RAM (`ss_test_io`). Screenshot requests are a name plus a sequence counter.
-* `tests/launcher.lua` (about 30 lines) is the only Lua: it takes the requested screenshots, and when the ROM sets `done` it writes the log to a file and exits mGBA.
+* `tests/launcher.lua` (about 30 lines) is the only Lua: it takes the requested screenshots, and when the ROM sets `done` it writes the log to a file and exits mGBA. It also sets a `ready` flag every frame; the ROM waits for it before starting, because mGBA attaches the script shortly after the ROM begins running. Screenshots are saved at the end of the frame they are requested in, so `T_SHOT` waits one frame before the scenario continues.
 * `run_tests.ps1` deletes the save, boots the ROM twice and fails unless both logs end with `RESULT: PASS`. The first boot runs smoke, death, power and full_run, then leaves a marker in SRAM. The second boot sees the marker and runs the save check.
 
 | Suite | What it does |

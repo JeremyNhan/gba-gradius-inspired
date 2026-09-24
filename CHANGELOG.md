@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.0.3-beta (unreleased)
+## v0.0.1-alpha (2026-09-24) - C rewrite
 
 Rewrite in C. Same game, same content, same art and music.
 

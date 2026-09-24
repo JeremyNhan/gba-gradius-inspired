@@ -6,7 +6,7 @@ Everything is C: the game, the asset generator that draws every sprite, backgrou
 
 ![Title](docs/img/title.png) ![Stage 2](docs/img/stage2.png) ![Spread laser with two shooters](docs/img/power.png) ![Stage 1 boss](docs/img/boss.png)
 
-Output: **`spaceshooter.gba`** (≈ 253 KB) in the repository root. Version **v0.0.3-beta** (C rewrite). Released ROMs are on the [Releases](https://github.com/JeremyNhan/gba-gradius-inspired/releases) page; changes are listed in [CHANGELOG.md](CHANGELOG.md).
+Output: **`spaceshooter.gba`** (≈ 253 KB) in the repository root. Version **v0.0.1-alpha** (C rewrite; the earlier C++/Butano builds were released as v0.0.1-beta and v0.0.2-beta). Released ROMs are on the [Releases](https://github.com/JeremyNhan/gba-gradius-inspired/releases) page; changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Controls
 

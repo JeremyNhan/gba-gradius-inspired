@@ -32,6 +32,10 @@ extern u32 test_now;                 /* frames since the tests started */
     do { (t)->wake = test_now + (max_frames); (t)->line = __LINE__; __attribute__((fallthrough)); case __LINE__: \
          if(! (cond) && test_now < (t)->wake) return false; } while(0)
 
+/* The launcher saves a screenshot at the end of the frame it was requested in, after that frame's
+ * game logic ran: wait one frame so input that follows cannot change the screen first. */
+#define T_SHOT(t, ...) do { test_shot(__VA_ARGS__); T_WAIT(t, 1); } while(0)
+
 void test_log(const char* fmt, ...);
 void test_check(const char* name, bool ok, const char* detail_fmt, ...);
 void test_shot(const char* fmt, ...);

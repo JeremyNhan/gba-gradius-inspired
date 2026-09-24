@@ -3,7 +3,7 @@
 
 #include "ss_base.h"
 
-#define GAME_VERSION "V0.0.3 BETA"
+#define GAME_VERSION "V0.0.1 ALPHA"
 
 /* Title: logo, scrolling stars, cruising ship, hi-score. Returns true when START is pressed. */
 void title_init(int hiscore);

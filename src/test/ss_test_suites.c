@@ -108,7 +108,7 @@ bool suite_smoke(void)
     test_set_hooks(smoke_track, NULL);
     T_WAIT(t, 120);
     test_check("boots to TITLE", app_state() == STATE_TITLE, "%s", state_names[app_state()]);
-    test_shot("smoke_01_title");
+    T_SHOT(t, "smoke_01_title");
     test_check("title music playing", audio_music_playing(), NULL);
     test_check("sound hardware enabled (master, Direct Sound, sample timer)",
                (REG_SNDSTAT & 0x80) && (REG_SNDDSCNT & 0x3300) && (REG_TM0CNT & 0x80),
@@ -120,13 +120,13 @@ bool suite_smoke(void)
     test_check("starts on stage 1", game.stage == 0, NULL);
     test_check("starts with 3 lives", game.lives == 3, "%d", game.lives);
     T_WAIT(t, 40);
-    test_shot("smoke_02_stage_banner");
+    T_SHOT(t, "smoke_02_stage_banner");
 
     /* shooting */
     test_key_down(KEY_A);
     T_WAIT(t, 15);
     test_check("A fires shots", shots_count() > 0, "%d", shots_count());
-    test_shot("smoke_03_shooting");
+    T_SHOT(t, "smoke_03_shooting");
     test_key_up(KEY_A);
 
     /* charged shot: hold B past the charge time, release, one piercing wave comes out */
@@ -146,7 +146,7 @@ bool suite_smoke(void)
     test_check("pause freezes stage clock", world.stage_frame == sm.sf, "%d vs %d", sm.sf, world.stage_frame);
     test_check("pause ignores movement input", px() == sm.x0, "%d vs %d", sm.x0, px());
     test_check("music paused while paused", ! audio_music_playing(), NULL);
-    test_shot("smoke_04_paused");
+    T_SHOT(t, "smoke_04_paused");
     PRESS(t, KEY_START);
     T_WAIT(t, 10);
     test_check("START resumes", app_state() == STATE_PLAYING, "%s", state_names[app_state()]);
@@ -184,7 +184,7 @@ bool suite_smoke(void)
 
         if(sm.loop == 7)
         {
-            test_shot("smoke_05_combat");
+            T_SHOT(t, "smoke_05_combat");
         }
     }
 
@@ -227,13 +227,13 @@ bool suite_death(void)
     test_check("touching terrain destroys the ship", ! player_alive(), "%s", snapshot());
     test_check("a life is lost", game.lives == de.lives0 - 1, "%d", game.lives);
     T_WAIT(t, 20);
-    test_shot("death_01_explosion");
+    T_SHOT(t, "death_01_explosion");
     test_key_up(KEY_UP);
 
     T_WAIT_UNTIL(t, player_alive(), 200);
     test_check("ship respawns", player_alive(), "%s", snapshot());
     T_WAIT(t, 10);
-    test_shot("death_02_respawn");
+    T_SHOT(t, "death_02_respawn");
 
     /* Invulnerable right after respawn: flying into the ceiling must not kill immediately. */
     de.lives0 = game.lives;
@@ -247,12 +247,12 @@ bool suite_death(void)
     test_check("losing all lives -> GAME_OVER", app_state() == STATE_GAME_OVER, "%s", snapshot());
     test_check("deaths counted", game.deaths == 3, "%d", game.deaths);
     T_WAIT(t, 100);
-    test_shot("death_03_game_over");
+    T_SHOT(t, "death_03_game_over");
 
     PRESS(t, KEY_START);
     T_WAIT(t, 30);
     test_check("START on game over -> TITLE", app_state() == STATE_TITLE, "%s", state_names[app_state()]);
-    test_shot("death_04_title");
+    T_SHOT(t, "death_04_title");
 
     PRESS(t, KEY_START);
     T_WAIT(t, 30);
@@ -327,7 +327,7 @@ bool suite_power(void)
         {
             test_key_down(KEY_A);
             T_WAIT(t, 12);
-            test_shot("power_step%d_%s", pw.step, step_names[pw.step]);
+            T_SHOT(t, "power_step%d_%s", pw.step, step_names[pw.step]);
             test_key_up(KEY_A);
         }
 
@@ -347,7 +347,7 @@ bool suite_power(void)
     T_WAIT_UNTIL(t, world.shockwaves > pw.waves0, 10);
     test_check("reaching SHOCKWAVE fires one immediately", world.shockwaves > pw.waves0, "%s", power_line());
     T_WAIT(t, 1);
-    test_shot("power_shockwave_flash");
+    T_SHOT(t, "power_shockwave_flash");
     test_check("shockwave clears enemies and bullets", enemies_count() == 0 && bullets_count() == 0, "%s", snapshot());
     T_WAIT_UNTIL(t, world.shockwaves > pw.waves0 + 1, 620);
     test_check("shockwave repeats periodically (600 frames)", world.shockwaves > pw.waves0 + 1, "%s", power_line());
@@ -487,9 +487,9 @@ bool suite_full_run(void)
         }
 
         T_WAIT(t, 1500);
-        test_shot("full_run_stage%d_a", fr.stage + 1);
+        T_SHOT(t, "full_run_stage%d_a", fr.stage + 1);
         T_WAIT(t, 1500);
-        test_shot("full_run_stage%d_b", fr.stage + 1);
+        T_SHOT(t, "full_run_stage%d_b", fr.stage + 1);
 
         T_WAIT_UNTIL(t, boss_active(), 4000);
         {
@@ -499,7 +499,7 @@ bool suite_full_run(void)
         }
 
         T_WAIT(t, 200);
-        test_shot("full_run_stage%d_boss", fr.stage + 1);
+        T_SHOT(t, "full_run_stage%d_boss", fr.stage + 1);
         fr.hp0 = boss_hp();
         {
             char name[32];
@@ -515,7 +515,7 @@ bool suite_full_run(void)
         }
 
         T_WAIT(t, 300);
-        test_shot("full_run_stage%d_boss_late", fr.stage + 1);
+        T_SHOT(t, "full_run_stage%d_boss_late", fr.stage + 1);
 
         T_WAIT_UNTIL(t, app_state() == STATE_STAGE_CLEAR || app_state() == STATE_ENDING, 9000);
         {
@@ -526,7 +526,7 @@ bool suite_full_run(void)
 
         test_log("stage %d power at clear: %s", fr.stage + 1, power_line());
         T_WAIT(t, 30);
-        test_shot("full_run_stage%d_clear", fr.stage + 1);
+        T_SHOT(t, "full_run_stage%d_clear", fr.stage + 1);
 
         if(fr.stage < 2)
         {
@@ -538,25 +538,25 @@ bool suite_full_run(void)
             }
 
             T_WAIT(t, 60);
-            test_shot("full_run_stage%d_start", fr.stage + 2);
+            T_SHOT(t, "full_run_stage%d_start", fr.stage + 2);
         }
     }
 
     T_WAIT_UNTIL(t, app_state() == STATE_ENDING, 900);
     test_check("final boss leads to ENDING", app_state() == STATE_ENDING, "%s", snapshot());
     T_WAIT(t, 120);
-    test_shot("full_run_ending_1");
+    T_SHOT(t, "full_run_ending_1");
     PRESS(t, KEY_START);
     T_WAIT(t, 120);
-    test_shot("full_run_ending_2");
+    T_SHOT(t, "full_run_ending_2");
     PRESS(t, KEY_START);
     T_WAIT(t, 120);
-    test_shot("full_run_ending_3");
+    T_SHOT(t, "full_run_ending_3");
     PRESS(t, KEY_START);
     T_WAIT(t, 30);
     test_check("ending returns to TITLE", app_state() == STATE_TITLE, "%s", state_names[app_state()]);
     test_check("hi-score updated", game.hiscore >= game.score && game.hiscore > DEFAULT_HISCORE, "%d", game.hiscore);
-    test_shot("full_run_title_after");
+    T_SHOT(t, "full_run_title_after");
 
     test_log("max cpu %d%%, max sprites %d, max enemy bullets %d, max enemies %d, max shots %d", fr.cpu_max,
              fr.sprites_max, fr.bullets_max, fr.enemies_max, fr.shots_max);
@@ -604,6 +604,6 @@ bool suite_save_check(void)
     test_check("hi-score loaded from SRAM after restart", game.hiscore > DEFAULT_HISCORE, "%d", game.hiscore);
     test_check("hi-score matches previous run", game.hiscore == test_expected_hiscore, "%d vs %d", game.hiscore,
                test_expected_hiscore);
-    test_shot("save_check_title");
+    T_SHOT(t, "save_check_title");
     T_END(t);
 }

@@ -9,7 +9,9 @@
 #include "ss_world.h"
 
 /* Block read by tests/launcher.lua (its address comes from the ELF symbol table). Layout:
- *   +0 magic "SSTEST01", +8 done, +12 shot_seq, +16 shot_name[32], +48 log_len, +52 log[] */
+ *   +0 magic "SSTEST01", +8 done, +12 shot_seq, +16 shot_name[32], +48 log_len, +52 ready, +56 log[]
+ * `ready` is set by the launcher: mGBA attaches the script shortly after the ROM starts, so the tests
+ * wait for it (otherwise the first screenshot requests would be missed). */
 typedef struct
 {
     char magic[8];
@@ -17,6 +19,7 @@ typedef struct
     u32 shot_seq;
     char shot_name[32];
     u32 log_len;
+    u32 ready;
     char log[24 * 1024];
 } test_io_block;
 
@@ -225,7 +228,7 @@ static void finish_suite(void)
 
 void test_frame(void)
 {
-    if(ss_test_io.done)
+    if(ss_test_io.done || ! ss_test_io.ready)
     {
         return;
     }

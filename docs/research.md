@@ -1,6 +1,6 @@
 # Research Report — GBA Development (Phase 1)
 
-> **Update (C rewrite, v0.0.3-beta):** the game no longer uses Butano, Python or Lua test logic. Section 0 records the decisions for the C version; sections 1-8 are the original Phase 1 research, kept for reference (the hardware facts in section 3 still apply).
+> **Update (C rewrite, v0.0.1-alpha):** the game no longer uses Butano, Python or Lua test logic. Section 0 records the decisions for the C version; sections 1-8 are the original Phase 1 research, kept for reference (the hardware facts in section 3 still apply).
 
 ## 0. C rewrite (2026-09-24)
 
