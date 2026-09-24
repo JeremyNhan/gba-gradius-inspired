@@ -38,7 +38,7 @@ enum class boss_id : unsigned char
 };
 
 // Spawn flags.
-constexpr short flag_carrier = 1;       // drops a power-up (for formations: when all are destroyed)
+constexpr short flag_carrier = 1;       // bonus formation: +500 when every member is destroyed
 constexpr short flag_ceiling = 2;       // turret mounted on the ceiling
 constexpr short flag_from_left = 4;     // enters from the left edge
 

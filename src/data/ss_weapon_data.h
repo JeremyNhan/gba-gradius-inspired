@@ -3,20 +3,19 @@
 
 #include "bn_fixed.h"
 
-#include "ss_session.h"
-
 namespace ss
 {
 
 enum class shot_kind : unsigned char
 {
     NORMAL,
-    SPREAD,
+    LASER,
+    DOT,            // homing dot
     MISSILE,
-    BEAM
+    BEAM            // charged shot
 };
 
-/// One projectile of a volley: vertical offset from the ship's nose and velocity (pixels/frame).
+/// One projectile of a volley: vertical offset from the gun and velocity (pixels/frame).
 struct shot_spec
 {
     signed char dy;
@@ -24,53 +23,56 @@ struct shot_spec
     bn::fixed vy;
 };
 
-struct weapon_level_def
-{
-    int fire_interval;          // frames between volleys while A is held
-    int damage;                 // per projectile
-    int count;                  // projectiles per volley
-    shot_spec shots[5];
-};
-
-struct weapon_def
+struct gun_def
 {
     const char* hud_name;
     shot_kind kind;
-    weapon_level_def levels[max_weapon_level];
+    int fire_interval;          // frames between volleys while A is held
+    int damage;                 // per projectile (lasers hit every enemy they pass through)
+    int count;                  // projectiles per volley
+    shot_spec shots[3];
 };
 
-// Primary weapons, indexed by weapon_type. Data-driven: the player code only reads these tables.
-constexpr weapon_def weapon_defs[] = {
-    {   // NORMAL: fast, focused forward stream
-        "SHOT", shot_kind::NORMAL, {
-            { 7, 2, 1, { { 0, 7, 0 } } },
-            { 7, 2, 2, { { -3, 7, 0 }, { 3, 7, 0 } } },
-            { 6, 2, 3, { { -5, 7, 0 }, { 0, 7, 0 }, { 5, 7, 0 } } }
-        }
+// Main guns, indexed by main_gun (ss_power_data.h). Data-driven: the player code only reads these tables.
+// Additional shooters fire the same volley from their own position.
+constexpr gun_def gun_defs[] = {
+    {   // NORMAL: fast single bolt
+        "SHOT", shot_kind::NORMAL, 7, 2, 1, { { 0, 7, 0 } }
     },
-    {   // SPREAD: wide fan, weaker pellets, slower
-        "WIDE", shot_kind::SPREAD, {
-            { 11, 1, 3, { { 0, 5, 0 }, { -2, bn::fixed(4.8), bn::fixed(-1.1) }, { 2, bn::fixed(4.8), bn::fixed(1.1) } } },
-            { 11, 1, 5, { { 0, 5, 0 }, { -2, bn::fixed(4.8), bn::fixed(-1.1) }, { 2, bn::fixed(4.8), bn::fixed(1.1) },
-                          { -3, bn::fixed(4.2), bn::fixed(-2.2) }, { 3, bn::fixed(4.2), bn::fixed(2.2) } } },
-            { 9, 2, 5, { { 0, 5, 0 }, { -2, bn::fixed(4.8), bn::fixed(-1.1) }, { 2, bn::fixed(4.8), bn::fixed(1.1) },
-                         { -3, bn::fixed(4.2), bn::fixed(-2.2) }, { 3, bn::fixed(4.2), bn::fixed(2.2) } } }
-        }
+    {   // LASER: long bolt that pierces enemies (stopped by the boss and terrain)
+        "LASER", shot_kind::LASER, 9, 2, 1, { { 0, 9, 0 } }
+    },
+    {   // SPREAD LASER: three lasers; the diagonal slope matches the laser sprite frames (tools/sprites.py)
+        "S.LASER", shot_kind::LASER, 9, 2, 3, { { 0, 9, 0 }, { -3, 9, bn::fixed(-1.7) }, { 3, 9, bn::fixed(1.7) } }
     }
 };
 
-// Secondary weapon: homing missiles, fired automatically with A once collected.
+// Homing dot: small pellet that steers toward the nearest target.
+constexpr int dot_interval = 20;
+constexpr int dot_damage = 1;
+constexpr bn::fixed dot_speed = 4;
+constexpr int dot_turn_rate = 1400;        // binary angle units per frame (65536 = full turn)
+constexpr int max_dots = 2;
+
+// Missiles: forward (one at a time, angled down-forward) or homing (pairs, up and down).
 constexpr int missile_interval = 34;
 constexpr int missile_damage = 3;
 constexpr bn::fixed missile_speed = 3;
-constexpr int missile_turn_rate = 900;     // binary angle units per frame (65536 = full turn)
+constexpr int missile_turn_rate = 900;
+constexpr int max_forward_missiles = 2;
+constexpr int max_homing_missiles = 4;
 
 // Charged shot (hold B): piercing wave.
 constexpr int beam_damage = 12;
 constexpr bn::fixed beam_speed = 5;
 
-// Movement speed per speed level (pixels/frame).
-constexpr bn::fixed speed_by_level[max_speed_level] = { bn::fixed(1.5), bn::fixed(2.0), bn::fixed(2.5) };
+// Player movement speed (pixels/frame).
+constexpr bn::fixed player_speed = 2;
+
+// Shockwave (top of the power ladder): fires automatically every shockwave_interval frames.
+constexpr int shockwave_interval = 600;
+constexpr int shockwave_invulnerable_frames = 30;
+constexpr int shockwave_boss_damage_divisor = 10;   // boss loses hp_max / 10 per shockwave
 
 }
 

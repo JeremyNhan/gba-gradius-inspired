@@ -7,6 +7,7 @@
 #include "bn_sprite_items_boss_bar.h"
 #include "bn_sprite_items_life_icon.h"
 
+#include "ss_power_data.h"
 #include "ss_text.h"
 #include "ss_weapon_data.h"
 #include "ss_world.h"
@@ -76,21 +77,19 @@ void hud::show_warning()
     _banner_timer = 0;
 }
 
-void hud::show_pickup(powerup_type type)
+void hud::show_pickup(const char* label)
 {
-    static constexpr const char* labels[] = { "SPEED UP", "SHOT UP", "WIDE SHOT", "MISSILE UP", "SHIELD", "1 UP" };
-    _pickup_sprites.clear();
-    _text.centered(56, labels[int(type)], _pickup_sprites, text_color::CYAN);
-    _pickup_timer = 60;
+    _pending_pickup = label;
 }
 
-void hud::_update_score(world& w)
+bool hud::_update_score(world& w)
 {
     const session& game = w.game;
 
     // Redrawing text renders glyphs into sprite tiles in software, so the score line is refreshed
     // at most every 4th frame (15 Hz is plenty for a score counter).
     bool refresh_frame = (w.stage_frame & 3) == 0 || _shown_score < 0;
+    bool drew = false;
 
     if(refresh_frame && (game.score != _shown_score || game.hiscore != _shown_hiscore))
     {
@@ -105,6 +104,7 @@ void hud::_update_score(world& w)
         bn::string<24> high("HI ");
         format_number(game.hiscore, 8, high);
         _text.left(-38, top_y, high, _score_sprites, text_color::YELLOW);
+        drew = true;
     }
 
     if(game.lives != _shown_lives)
@@ -116,37 +116,62 @@ void hud::_update_score(world& w)
         format_number(game.lives, 1, lives);
         _text.left(103, top_y, lives, _lives_sprites);
     }
+
+    return drew;
 }
 
-void hud::_update_status(world& w)
+bool hud::_update_status(world& w)
 {
     const loadout& gear = w.game.gear;
-    int status = int(gear.weapon) | (gear.weapon_level << 2) | (gear.missile_level << 5) | (gear.speed_level << 8) |
-            (gear.shield << 11);
+    int status = gear.power | (gear.shield << 4);
 
     if(status == _shown_status)
     {
-        return;
+        return false;
     }
 
     _shown_status = status;
     _status_sprites.clear();
 
-    bn::string<40> line(weapon_defs[int(gear.weapon)].hud_name);
-    line.append(" LV");
-    format_number(gear.weapon_level, 1, line);
-    line.append("  MSL ");
-    format_number(gear.missile_level, 1, line);
-    line.append("  SPD ");
-    format_number(gear.speed_level, 1, line);
+    // e.g. "P9 S.LASER x3 DOT HMSL SHLD3 WAVE": power step, main gun, gun count (ship + shooters),
+    // then the extra powers owned.
+    int power = gear.power;
+    bn::string<40> line("P");
+    format_number(power, 1, line);
+    line.append(" ");
+    line.append(gun_defs[int(main_gun_of(power))].hud_name);
+
+    if(int shooters = shooter_count_of(power))
+    {
+        line.append(" x");
+        format_number(shooters + 1, 1, line);
+    }
+
+    if(has_power(power, power_step::HOMING_DOT))
+    {
+        line.append(" DOT");
+    }
+
+    missile_mode missiles = missile_mode_of(power);
+
+    if(missiles != missile_mode::NONE)
+    {
+        line.append(missiles == missile_mode::HOMING ? " HMSL" : " MSL");
+    }
 
     if(gear.shield)
     {
-        line.append("  SHLD ");
+        line.append(" SHLD");
         format_number(gear.shield, 1, line);
     }
 
+    if(has_power(power, power_step::SHOCKWAVE))
+    {
+        line.append(" WAVE");
+    }
+
     _text.left(-118, bottom_y, line, _status_sprites, text_color::CYAN);
+    return true;
 }
 
 void hud::_update_boss_bar(world& w)
@@ -229,8 +254,30 @@ void hud::update(world& w)
         return;
     }
 
-    _update_score(w);
-    _update_status(w);
+    // Rendering text draws glyphs into sprite tiles in software (up to ~15 % of a frame for a full
+    // line), so at most one text item is redrawn per frame: pickup label, then status line, then
+    // score. A capsule pickup therefore spreads its redraws over three frames.
+    bool drew = false;
+
+    if(_pending_pickup)
+    {
+        _pickup_sprites.clear();
+        _text.centered(56, _pending_pickup, _pickup_sprites, text_color::CYAN);
+        _pickup_timer = 60;
+        _pending_pickup = nullptr;
+        drew = true;
+    }
+
+    if(! drew)
+    {
+        drew = _update_status(w);
+    }
+
+    if(! drew)
+    {
+        _update_score(w);
+    }
+
     _update_boss_bar(w);
     _update_debug(w);
 

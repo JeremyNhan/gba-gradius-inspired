@@ -25,6 +25,7 @@ Remove-Item -ErrorAction SilentlyContinue (Join-Path $root 'spaceshooter_profile
 $suites = @(
     @{ Test = 'smoke'; Build = 'release' },
     @{ Test = 'death'; Build = 'debug' },
+    @{ Test = 'power'; Build = 'debug' },
     @{ Test = 'full_run'; Build = 'debug' },
     @{ Test = 'full_run'; Build = 'profile' },
     @{ Test = 'save_check'; Build = 'profile' }

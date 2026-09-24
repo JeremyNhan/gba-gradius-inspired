@@ -66,6 +66,7 @@ struct enemy_def
     unsigned char fire_from_stage;  // 0-based stage from which this enemy starts shooting
     explosion_size explosion;
     bool contact_damage_immune;     // survives ramming the player (big/armoured things)
+    unsigned char drop_chance;      // percent chance to drop a power capsule when destroyed by the player
 };
 
 }

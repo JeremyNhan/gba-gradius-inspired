@@ -10,6 +10,7 @@
 #include "ss_audio.h"
 #include "ss_math.h"
 #include "ss_sprite_util.h"
+#include "ss_weapon_data.h"
 #include "ss_world.h"
 
 namespace ss
@@ -209,6 +210,20 @@ bool boss::take_hit(world& w, const hitbox& box, int damage)
         damage = (damage + 1) / 2;
     }
 
+    _apply_damage(w, damage);
+    return true;
+}
+
+void boss::shockwave_hit(world& w)
+{
+    if(_state == state::FIGHT)
+    {
+        _apply_damage(w, bn::max(1, _hp_max / shockwave_boss_damage_divisor));
+    }
+}
+
+void boss::_apply_damage(world& w, int damage)
+{
     _hp -= damage;
     _flash = 2;
     _set_flash(true);
@@ -236,8 +251,6 @@ bool boss::take_hit(world& w, const hitbox& box, int damage)
         _timer = 0;
         audio::stop_music();
     }
-
-    return true;
 }
 
 void boss::update(world& w)

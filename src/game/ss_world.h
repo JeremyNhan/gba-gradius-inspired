@@ -77,6 +77,15 @@ public:
 
     void add_score(int points);
 
+    /// Moves the player to a step of the power ladder (grants the shield when the SHIELD step is reached).
+    void set_power(int power);
+
+    /// Shockwave (top power step): destroys every enemy and bullet, damages the boss, flashes the
+    /// screen and makes the player briefly invulnerable.
+    void shockwave();
+
+    int shockwaves = 0;         // fired this stage (telemetry)
+
     /// Difficulty scale for enemy fire rates/speeds: 0 for stage 1, grows with each stage.
     [[nodiscard]] int difficulty() const
     {
@@ -102,10 +111,12 @@ private:
     int _shake_amplitude = 0;
     int _game_over_timer = 0;
     int _clear_timer = 0;
+    int _flash_frames = 0;
     bool _debug_overlay = false;
 
     void _collide();
     void _update_camera();
+    void _update_flash();
     void _update_telemetry();
 };
 

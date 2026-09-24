@@ -85,15 +85,19 @@ stage_runner (spawn events) → player (input, move, fire) → player_shots → 
 
 | Group | Cap |
 |---|---|
-| Player + shield + charge glow | 3 |
-| Player shots | 20 |
+| Player + shield + charge glow + 2 shooters | 5 |
+| Player shots (3 guns × 3 lasers, dots, missiles) | 32 |
 | Enemies | 16 |
 | Enemy bullets | 36 |
 | Effects (explosions/sparks) | 16 |
 | Powerups | 4 |
 | Boss parts | 6 |
 | HUD + boss bar + text | ≤ 20 |
-| **Total** | **≤ 121** |
+| **Total** | **≤ 131** (hard caps; measured peak 85) |
+
+The caps add up to slightly more than 128 because they never peak together (a full-power volley during a full boss bullet pattern measured 85 sprites). `make_sprite` builds optionally, so if OAM were ever exhausted the extra entity would simply be invisible rather than crash.
+
+Sprite creation is the expensive operation (~2 % of a frame each), so bursts are spread over frames: enemy bullets get their sprite from `update()` with a budget of 4 per frame, shooters fire one frame apart, and the HUD renders one text item per frame.
 
 * Camera: a `bn::camera_ptr` is attached to gameplay sprites and BGs for screen shake; the HUD is not attached.
 
@@ -104,7 +108,7 @@ Butano `bn::keypad` (read once per frame by `bn::core`). Mapping:
 | Key | Action |
 |---|---|
 | D-pad | 8-way movement |
-| A (hold) | primary weapon (auto-fire) + missiles |
+| A (hold) | main gun (auto-fire) + homing dots + missiles, depending on the power step |
 | B (hold, release) | charge shot |
 | START | pause / resume; start from title |
 | SELECT | debug overlay (debug build only) |

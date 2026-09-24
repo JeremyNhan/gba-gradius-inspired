@@ -27,7 +27,7 @@ namespace ss
     constexpr int play_bottom = half_h;
 
     // Entity pool capacities. Sum stays under the 128 hardware sprites (see docs/architecture.md).
-    constexpr int max_player_shots = 24;
+    constexpr int max_player_shots = 32;     // 3 guns x 3 lasers + dots + missiles
     constexpr int max_enemies = 16;
     constexpr int max_enemy_bullets = 32;
     constexpr int max_effects = 16;
@@ -38,9 +38,6 @@ namespace ss
     constexpr int max_lives = 9;
     constexpr int respawn_frames = 90;
     constexpr int invulnerable_frames = 150;
-    constexpr int max_speed_level = 3;
-    constexpr int max_weapon_level = 3;
-    constexpr int max_missile_level = 2;
     constexpr int max_shield = 3;
     constexpr int charge_frames = 45;
 
@@ -65,7 +62,7 @@ namespace ss
     constexpr int stage_count = 3;
 
     // Shown on the title screen; keep in sync with the git tag / GitHub release.
-    constexpr const char* version_text = "V0.0.1 BETA";
+    constexpr const char* version_text = "V0.0.2 BETA";
 }
 
 #endif

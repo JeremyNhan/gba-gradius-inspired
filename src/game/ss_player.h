@@ -2,6 +2,7 @@
 #define SS_PLAYER_H
 
 #include "bn_fixed_point.h"
+#include "bn_algorithm.h"
 #include "bn_optional.h"
 #include "bn_sprite_ptr.h"
 
@@ -61,7 +62,15 @@ public:
         return _state == state::OUTRO && _position.x() > 140;
     }
 
-    void refresh_shield_sprite(world& w);
+    /// Syncs shield / shooter sprites with the loadout after the power level changed.
+    /// Reaching the shockwave step fires the first shockwave on the next frame.
+    void refresh_power(world& w, int previous_power);
+
+    /// Called by the world's shockwave: short invulnerability.
+    void shockwave_invulnerability(int frames)
+    {
+        _invulnerable_frames = bn::max(_invulnerable_frames, frames);
+    }
 
 private:
     enum class state : unsigned char
@@ -76,6 +85,15 @@ private:
     bn::optional<bn::sprite_ptr> _sprite;
     bn::optional<bn::sprite_ptr> _shield_sprite;
     bn::optional<bn::sprite_ptr> _charge_sprite;
+
+    // Additional shooters follow the ship's path: _trail records the ship position every frame it
+    // moves, and shooter i sits (i + 1) * shooter_spacing entries behind the head.
+    static constexpr int trail_size = 32;
+    static constexpr int shooter_spacing = 12;
+    bn::fixed_point _trail[trail_size];
+    int _trail_head = 0;
+    bn::optional<bn::sprite_ptr> _shooter_sprites[2];
+    int _shooter_frames[2] = { -1, -1 };
     state _state = state::FLYING;
     int _frame = -1;
     int _bank = 0;              // -1 nose up, 0 level, 1 nose down (smoothed)
@@ -85,11 +103,20 @@ private:
     int _dead_frames = 0;
     int _fire_cooldown = 0;
     int _missile_cooldown = 0;
+    int _dot_cooldown = 0;
+    int _shooter_volley = 0;    // shooters still to fire this volley (one per frame, spreads sprite creation)
+    int _wave_timer = 0;
     int _charge = 0;
     int _charge_frame = -1;
 
     void _move(world& w);
     void _fire(world& w);
+    void _fire_gun(world& w, const bn::fixed_point& origin);
+    void _update_shockwave(world& w);
+    void _record_trail();
+    void _reset_trail();
+    [[nodiscard]] bn::fixed_point _shooter_position(int index) const;
+    void _refresh_shield_sprite(world& w);
     void _update_charge(world& w);
     void _update_sprites(world& w);
     void _respawn(world& w);

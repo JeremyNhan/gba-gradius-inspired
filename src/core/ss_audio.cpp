@@ -30,7 +30,7 @@ namespace
         { bn::sound_items::sfx_explode, 4, 2, bn::fixed(0.7) },
         { bn::sound_items::sfx_explode_big, 10, 4, bn::fixed(0.9) },
         { bn::sound_items::sfx_pickup, 0, 3, bn::fixed(0.7) },
-        { bn::sound_items::sfx_oneup, 0, 4, bn::fixed(0.8) },
+        { bn::sound_items::sfx_power_max, 0, 4, bn::fixed(0.8) },
         { bn::sound_items::sfx_player_death, 0, 5, bn::fixed(0.9) },
         { bn::sound_items::sfx_warning, 0, 5, bn::fixed(0.8) },
         { bn::sound_items::sfx_select, 0, 3, bn::fixed(0.7) },

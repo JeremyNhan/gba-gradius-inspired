@@ -17,13 +17,13 @@ local FIELDS = {
     state = { 24, 1 }, stage = { 25, 1 }, lives = { 26, 1 }, boss_active = { 27, 1 },
     player_x = { 28, -2 }, player_y = { 30, -2 }, boss_hp = { 32, -2 }, boss_hp_max = { 34, -2 },
     boss_y = { 36, -2 }, enemies = { 38, 1 }, enemy_bullets = { 39, 1 }, player_shots = { 40, 1 },
-    effects = { 41, 1 }, powerups = { 42, 1 }, weapon = { 43, 1 }, weapon_level = { 44, 1 },
-    missile_level = { 45, 1 }, speed_level = { 46, 1 }, shield = { 47, 1 }, cpu_pct = { 48, 1 },
+    effects = { 41, 1 }, powerups = { 42, 1 }, gun = { 43, 1 }, power = { 44, 1 },
+    missiles = { 45, 1 }, shooters = { 46, 1 }, shield = { 47, 1 }, cpu_pct = { 48, 1 },
     cpu_pct_max = { 49, 1 }, missed_frames = { 50, 2 }, pool_drops = { 52, 2 }, player_alive = { 54, 1 },
     deaths = { 55, 1 }, sprites_used = { 56, 1 }, ctl_invincible = { 57, 1 }, ctl_autofire = { 58, 1 },
-    ctl_skip_to_boss = { 59, 1 }, music_playing = { 60, 1 }, cpu_max_stage_frame = { 64, 4 },
+    ctl_skip_to_boss = { 59, 1 }, music_playing = { 60, 1 }, ctl_set_power = { 61, 1 }, cpu_max_stage_frame = { 64, 4 },
     cpu_max_frame = { 68, 4 }, sprite_tiles_used = { 72, 2 }, bg_tiles_used = { 74, 2 },
-    bg_map_cells_used = { 76, 2 },
+    bg_map_cells_used = { 76, 2 }, shockwaves = { 102, 2 }, prof_app = { 104, 2 },
 }
 -- prof0..prof11: per-system cost of the last gameplay frame in 1/1000 frame (test-hook builds).
 for i = 0, 11 do FIELDS["prof" .. i] = { 78 + 2 * i, 2 } end
@@ -145,6 +145,11 @@ end
 
 function shot(name)
     emu:screenshot(OUT_DIR .. "/" .. TEST_NAME .. "_" .. name .. ".png")
+end
+
+function power_line()
+    return string.format("power=%d gun=%d missiles=%d shooters=%d shield=%d waves=%d", tel("power"), tel("gun"),
+        tel("missiles"), tel("shooters"), tel("shield"), tel("shockwaves"))
 end
 
 function snapshot_line()

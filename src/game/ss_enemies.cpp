@@ -21,17 +21,17 @@ namespace ss
 
 namespace
 {
-    //  item                                    frm anim hw hh  hp  score  move                  speed           fire                      intv first from explosion             immune
+    //  item                                    frm anim hw hh  hp  score  move                  speed           fire                      intv first from explosion             immune drop%
     constexpr enemy_def enemy_defs[] = {
-        { &bn::sprite_items::enemy_dart,         2, 4,  6, 4,  2,  100, move_type::STRAIGHT,  bn::fixed(1.8), fire_type::AIMED,          220,  70, 1, explosion_size::SMALL, false },
-        { &bn::sprite_items::enemy_waver,        3, 6,  6, 4,  2,  150, move_type::SINE,      bn::fixed(1.2), fire_type::STRAIGHT,       200, 110, 0, explosion_size::SMALL, false },
-        { &bn::sprite_items::enemy_interceptor,  2, 3,  6, 3,  3,  250, move_type::INTERCEPT, bn::fixed(4.0), fire_type::BURST3,         999,  20, 0, explosion_size::SMALL, false },
-        { &bn::sprite_items::enemy_turret,       5, 0,  6, 5,  5,  300, move_type::GROUND,    bn::fixed(0),   fire_type::AIMED,          110,  40, 0, explosion_size::SMALL, true },
-        { &bn::sprite_items::enemy_hulk,         2, 8, 13, 10, 40, 2000, move_type::HOVER,    bn::fixed(0.8), fire_type::AIMED_SPREAD3,   80,  50, 0, explosion_size::BIG,   true },
-        { &bn::sprite_items::enemy_swarm,        4, 4,  5, 5,  1,  100, move_type::LOOP,      bn::fixed(2.0), fire_type::NONE,             0,   0, 0, explosion_size::SMALL, false },
-        { &bn::sprite_items::enemy_mine,         2, 10, 5, 5,  4,  200, move_type::DRIFT,     bn::fixed(0.6), fire_type::RING8,            0,   0, 0, explosion_size::SMALL, false },
-        { &bn::sprite_items::asteroid_small,     4, 12, 6, 6,  5,   50, move_type::TUMBLE,    bn::fixed(1.0), fire_type::NONE,             0,   0, 0, explosion_size::SMALL, true },
-        { &bn::sprite_items::asteroid_big,       4, 16, 12, 12, 18, 400, move_type::TUMBLE,   bn::fixed(0.6), fire_type::NONE,             0,   0, 0, explosion_size::BIG,   true },
+        { &bn::sprite_items::enemy_dart,         2, 4,  6, 4,  2,  100, move_type::STRAIGHT,  bn::fixed(1.8), fire_type::AIMED,          220,  70, 1, explosion_size::SMALL, false,   8 },
+        { &bn::sprite_items::enemy_waver,        3, 6,  6, 4,  2,  150, move_type::SINE,      bn::fixed(1.2), fire_type::STRAIGHT,       200, 110, 0, explosion_size::SMALL, false,   8 },
+        { &bn::sprite_items::enemy_interceptor,  2, 3,  6, 3,  3,  250, move_type::INTERCEPT, bn::fixed(4.0), fire_type::BURST3,         999,  20, 0, explosion_size::SMALL, false,  12 },
+        { &bn::sprite_items::enemy_turret,       5, 0,  6, 5,  5,  300, move_type::GROUND,    bn::fixed(0),   fire_type::AIMED,          110,  40, 0, explosion_size::SMALL, true,  15 },
+        { &bn::sprite_items::enemy_hulk,         2, 8, 13, 10, 40, 2000, move_type::HOVER,    bn::fixed(0.8), fire_type::AIMED_SPREAD3,   80,  50, 0, explosion_size::BIG,   true, 100 },
+        { &bn::sprite_items::enemy_swarm,        4, 4,  5, 5,  1,  100, move_type::LOOP,      bn::fixed(2.0), fire_type::NONE,             0,   0, 0, explosion_size::SMALL, false,   5 },
+        { &bn::sprite_items::enemy_mine,         2, 10, 5, 5,  4,  200, move_type::DRIFT,     bn::fixed(0.6), fire_type::RING8,            0,   0, 0, explosion_size::SMALL, false,  10 },
+        { &bn::sprite_items::asteroid_small,     4, 12, 6, 6,  5,   50, move_type::TUMBLE,    bn::fixed(1.0), fire_type::NONE,             0,   0, 0, explosion_size::SMALL, true,   3 },
+        { &bn::sprite_items::asteroid_big,       4, 16, 12, 12, 18, 400, move_type::TUMBLE,   bn::fixed(0.6), fire_type::NONE,             0,   0, 0, explosion_size::BIG,   true,  25 },
     };
 
     static_assert(sizeof(enemy_defs) / sizeof(enemy_defs[0]) == int(enemy_kind::COUNT));
@@ -183,9 +183,9 @@ void enemies::_formation_member_gone(world& w, enemy& target, bool killed)
 
     if(info.alive <= 0)
     {
+        // Bonus for wiping out a whole bonus formation.
         if(info.carrier && info.killed == info.spawned)
         {
-            w.items.drop(w, target.position);
             w.add_score(500);
         }
 
@@ -240,7 +240,8 @@ void enemies::destroy(world& w, enemy& target, bool by_player)
     {
         w.add_score(def.score);
 
-        if(target.flags & flag_carrier)
+        // Power capsules are a random reward for kills (deterministic: the world RNG is seeded).
+        if(def.drop_chance && w.rng.get_int(100) < def.drop_chance)
         {
             w.items.drop(w, position);
         }
@@ -274,6 +275,24 @@ void enemies::destroy_all(world& w)
             // Stagger the explosions over several frames to spread the sprite creation cost.
             w.fx.explosion_small(w, e.position, 1 + delay);
             delay += 3;
+            _formation_member_gone(w, e, false);
+            _pool.release(e);
+        }
+    }
+}
+
+void enemies::shockwave(world& w)
+{
+    int delay = 0;
+
+    for(enemy& e : _pool)
+    {
+        if(e.active)
+        {
+            // Stagger the explosions over several frames to spread the sprite creation cost.
+            w.add_score(e.def->score);
+            w.fx.explosion_small(w, e.position, 1 + delay);
+            delay += 2;
             _formation_member_gone(w, e, false);
             _pool.release(e);
         }

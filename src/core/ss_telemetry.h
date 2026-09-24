@@ -32,10 +32,10 @@ struct ss_telemetry_block
     uint8_t player_shots = 0;
     uint8_t effects = 0;
     uint8_t powerups = 0;
-    uint8_t weapon = 0;
-    uint8_t weapon_level = 0;
-    uint8_t missile_level = 0;
-    uint8_t speed_level = 0;
+    uint8_t gun = 0;                // ss::main_gun
+    uint8_t power = 0;              // power ladder step 0..9
+    uint8_t missiles = 0;           // ss::missile_mode
+    uint8_t shooters = 0;           // additional shooters 0..2
     uint8_t shield = 0;
     uint8_t cpu_pct = 0;            // CPU usage of the last frame, percent
     uint8_t cpu_pct_max = 0;        // worst frame since the stage started
@@ -48,13 +48,15 @@ struct ss_telemetry_block
     uint8_t ctl_autofire = 0;       // [debug] test hook: fire held
     uint8_t ctl_skip_to_boss = 0;   // [debug] test hook: jump stage timeline to the boss
     uint8_t music_playing = 0;      // bn::music::playing()
-    uint8_t pad = 0;
+    uint8_t ctl_set_power = 0;      // [test hooks] n > 0: set the power ladder to step n - 1
     uint32_t cpu_max_stage_frame = 0;   // stage_frame at which cpu_pct_max was recorded
     uint32_t cpu_max_frame = 0;         // global frame of the same
     uint16_t sprite_tiles_used = 0;     // 4bpp tiles allocated in OBJ VRAM (1024 max = 32 KB)
     uint16_t bg_tiles_used = 0;         // 4bpp tiles allocated in BG VRAM
     uint16_t bg_map_cells_used = 0;     // BG map cells allocated
     uint16_t prof[12] = {};             // [test hooks] per-system cost of the last gameplay frame, 1/1000 frame
+    uint16_t shockwaves = 0;            // shockwaves fired this stage
+    uint16_t prof_app = 0;              // [test hooks] cost of the whole app::update() of the last frame, 1/1000 frame
 };
 
 extern "C" volatile ss_telemetry_block ss_telemetry;

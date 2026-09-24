@@ -50,6 +50,8 @@ def sprite_items():
         ('shot_spread', spr.spread_shot, MASTER),
         ('shot_missile', spr.missile, MASTER),
         ('shot_charge', spr.charge_shot, MASTER),
+        ('shot_laser', spr.laser, MASTER),
+        ('shooter', spr.shooter, MASTER),
         ('bullet_small', spr.enemy_bullet, MASTER),
         ('bullet_big', spr.enemy_bullet_big, MASTER),
         ('bullet_needle', spr.enemy_needle, MASTER),

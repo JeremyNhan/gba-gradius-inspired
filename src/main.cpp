@@ -6,8 +6,12 @@
 #include <new>
 
 #include "bn_core.h"
+#include "bn_timer.h"
+#include "bn_timers.h"
 
 #include "ss_app.h"
+#include "ss_constants.h"
+#include "ss_telemetry.h"
 
 namespace
 {
@@ -24,7 +28,14 @@ int main()
 
     while(true)
     {
+#if SS_TEST_HOOKS
+        // Game logic cost (everything but Butano's own frame work), in 1/1000 frame.
+        bn::timer logic_timer;
         game->update();
+        ss_telemetry.prof_app = uint16_t(logic_timer.elapsed_ticks() * 1000 / bn::timers::ticks_per_frame());
+#else
+        game->update();
+#endif
         bn::core::update();
     }
 }

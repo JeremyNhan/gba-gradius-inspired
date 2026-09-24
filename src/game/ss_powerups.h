@@ -14,23 +14,12 @@ namespace ss
 
 class world;
 
-/// Order matches the frames of the powerup sprite sheet (tools/sprites.py: powerups()).
-enum class powerup_type : unsigned char
-{
-    SPEED,
-    SHOT,
-    SPREAD,
-    MISSILE,
-    SHIELD,
-    LIFE
-};
-
 struct powerup
 {
     bool active = false;
-    powerup_type type = powerup_type::SHOT;
     bn::fixed_point position;
     int timer = 0;
+    int frame = -1;
     bn::optional<bn::sprite_ptr> sprite;
 
     void clear()
@@ -49,12 +38,12 @@ class powerups
 {
 
 public:
-    /// Drops the next capsule of the deterministic rotation (skipping upgrades already maxed).
+    /// Drops a power capsule (enemies roll their drop chance before calling this).
     void drop(world& w, const bn::fixed_point& position);
 
     void update(world& w);
 
-    /// Applies the capsule's effect to the player's loadout.
+    /// Advances the player one step on the power ladder (at the top: shield refill and bonus score).
     void collect(world& w, powerup& item);
 
     pool<powerup, max_powerups>& items()
@@ -69,9 +58,6 @@ public:
 
 private:
     pool<powerup, max_powerups> _pool;
-    int _rotation = 0;
-
-    [[nodiscard]] bool _useful(const world& w, powerup_type type) const;
 };
 
 }

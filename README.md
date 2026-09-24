@@ -1,21 +1,25 @@
 # Space Shooter
 
-An original horizontal shoot-'em-up for the **Game Boy Advance**, built on [Butano](https://github.com/GValiente/butano) and devkitARM. It has three scrolling stages, nine enemy types, capsule power-ups, four weapons, three multi-phase bosses, an ending, and a saved high score. It is designed around real GBA hardware limits: 240×160, 128 sprites, 32 KB OBJ VRAM, fixed-point math, no heap during gameplay.
+An original horizontal shoot-'em-up for the **Game Boy Advance**, built on [Butano](https://github.com/GValiente/butano) and devkitARM. It has three scrolling stages, nine enemy types, a 10-step power ladder fed by random capsule drops (lasers, homing weapons, trailing shooters, a periodic shockwave), three multi-phase bosses, an ending, and a saved high score. It is designed around real GBA hardware limits: 240×160, 128 sprites, 32 KB OBJ VRAM, fixed-point math, no heap during gameplay.
 
-![Title](docs/img/title.png) ![Stage 2](docs/img/stage2.png) ![Final boss](docs/img/boss3.png)
+![Title](docs/img/title.png) ![Stage 2](docs/img/stage2.png) ![Spread laser with two shooters](docs/img/power.png) ![Final boss](docs/img/boss3.png)
 
-Output: **`spaceshooter.gba`** (≈ 324 KB) in the repository root. Current version: **v0.0.1-beta**. Download the ROM from the [Releases](https://github.com/JeremyNhan/gba-gradius-inspired/releases) page; changes are listed in [CHANGELOG.md](CHANGELOG.md).
+Output: **`spaceshooter.gba`** (≈ 328 KB) in the repository root. Current version: **v0.0.2-beta**. Download the ROM from the [Releases](https://github.com/JeremyNhan/gba-gradius-inspired/releases) page; changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Controls
 
 | Button | Action |
 |---|---|
 | D-pad | Move (8 directions) |
-| A (hold) | Fire (plus homing missiles once collected) |
+| A (hold) | Fire (plus homing dots and missiles once earned) |
 | B (hold, release) | Charged piercing wave |
 | START | Start game / pause / resume |
 
-Gameplay, enemies, weapons and bosses are described in [docs/design.md](docs/design.md).
+Destroyed enemies randomly drop **P** capsules. Each one moves you one step up the power ladder:
+
+`normal shot → homing dot → missile → laser → shield → spread laser → shooter → 2 shooters → homing missile → shockwave`
+
+Losing a ship resets you to the normal shot. Gameplay, the power ladder, enemies and bosses are described in [docs/design.md](docs/design.md).
 
 ## Building
 
@@ -72,10 +76,10 @@ None of this is compiled into the release ROM.
 
 ## Testing
 
-Automated tests drive the real ROMs in mGBA with Lua scripts. They inject input, read a telemetry block in RAM, and take screenshots. They cover boot, title, controls, pause, collisions, death/respawn/game over, a complete playthrough of all three stages and bosses, the ending, high-score save and reload, and CPU/sprite/VRAM budgets.
+Automated tests drive the real ROMs in mGBA with Lua scripts. They inject input, read a telemetry block in RAM, and take screenshots. They cover boot, title, controls, pause, collisions, every step of the power ladder and the shockwave, death/respawn/game over, a complete playthrough of all three stages and bosses, the ending, high-score save and reload, and CPU/sprite/VRAM budgets.
 
 ```powershell
-.\tests\run_all.ps1   # builds all 3 ROMs, runs 5 suites (94 checks)
+.\tests\run_all.ps1   # builds all 3 ROMs, runs 6 suites (121 checks)
 ```
 
 This needs the mGBA **nightly** build (for `--script`) in `tools\emulator\` or `$env:MGBA`. See [docs/testing.md](docs/testing.md) for the checklist and measurements.
@@ -86,13 +90,14 @@ This needs the mGBA **nightly** build (for `--script`) in `tools\emulator\` or `
 |---|---|
 | Build | PASS (release, debug, profile) |
 | Target | Game Boy Advance (ARM7TDMI, Mode 0, 4bpp sprites, Maxmod audio, SRAM save) |
-| Frame rate | 59.73 Hz (hardware refresh), 0 missed frames in a full playthrough; average CPU 29 %, worst frame 78 % |
-| Tests | 94/94 automated checks passing in mGBA |
+| Frame rate | 59.73 Hz (hardware refresh), 0 missed frames in a full playthrough; average CPU 31 %, worst frame 85 % |
+| Tests | 121/121 automated checks passing in mGBA |
 
 ### Known limitations
 
 * **Not tested on a physical GBA.** It was tested in mGBA only; see the hardware assessment in docs/testing.md.
-* Shield and 1UP pickups are not exercised by the automated bot; they are covered only by code review so far; try them in a manual session.
+* There is no way to earn extra lives (the power ladder has no 1UP step).
+* Balance is untuned by human play: at full power the shockwave (10 % boss HP every 10 s) plus three spread lasers shortens boss fights considerably.
 * Audio is verified by hardware state (Maxmod/Direct Sound running, music start/pause). Its quality has not been judged beyond that. Music is simple 4-channel generated MOD.
 * When a pool is full (for example 32 enemy bullets during dense boss phases), new spawns are dropped rather than overwriting anything.
 * Only the high score is saved; there is no continue or stage unlock.

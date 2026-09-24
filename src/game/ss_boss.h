@@ -38,6 +38,9 @@ public:
     /// Applies a projectile hit if the box touches a vulnerable part. Returns true if it hit.
     bool take_hit(world& w, const hitbox& box, int damage);
 
+    /// Shockwave from the player: hp_max / shockwave_boss_damage_divisor damage (no hitbox test).
+    void shockwave_hit(world& w);
+
     /// True if the box touches the boss body (lethal to the player).
     [[nodiscard]] bool touches(const hitbox& box) const;
 
@@ -109,6 +112,7 @@ private:
     void _update_dying(world& w);
     void _sync_sprites(world& w);
     void _set_flash(bool flash);
+    void _apply_damage(world& w, int damage);
     [[nodiscard]] hitbox _core_box() const;
     [[nodiscard]] bn::fixed_point _muzzle() const;
 };

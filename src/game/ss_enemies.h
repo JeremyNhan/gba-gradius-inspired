@@ -82,6 +82,9 @@ public:
     }
 
     /// Destroys every enemy (used when a boss dies). No score is awarded.
+    /// Shockwave: destroys every enemy (with score, without drops or mine bursts).
+    void shockwave(world& w);
+
     void destroy_all(world& w);
 
 private:

@@ -28,10 +28,11 @@ Debug and profile builds also accept test controls written by the script: `ctl_i
 |---|---|---|
 | `smoke` | release | Boot → title → start → shoot → charge shot → pause/resume → movement → screen bounds → combat and scoring |
 | `death` | debug | Starts in stage 2, flies into the cave ceiling until all lives are lost → respawn, invulnerability, game over, back to title, new game |
+| `power` | debug | Starts in stage 2; uses the `ctl_set_power` test hook to visit every step of the power ladder, checks each step's loadout and that it fires; shield granted; shockwave fires on reaching step 9, clears enemies and bullets, repeats after 600 frames; losing a ship resets to the normal shot |
 | `full_run` | debug and profile | Bot plays all 3 stages (invincible + autofire, dodging vertically); skips to each boss after the stage's enemy waves, kills it, goes through stage clear → ending → title; collects performance statistics |
 | `save_check` | profile | Run after `full_run`: restarts the emulator and checks that the high score came back from SRAM |
 
-## 3. Checklist (last run: 2026-09-24, all automated checks passing: 94 checks, 0 failed)
+## 3. Checklist (last run: 2026-09-24, all automated checks passing: 121 checks, 0 failed)
 
 | Item | Result | Evidence |
 |---|---|---|
@@ -47,7 +48,11 @@ Debug and profile builds also accept test controls written by the script: `ctl_i
 | Enemies spawn | PASS | smoke, full_run |
 | Enemy projectiles work | PASS | full_run: up to 32 enemy bullets on screen |
 | Collision works | PASS | smoke: score rises (shots hit enemies); death: terrain kills the ship; full_run: bosses take damage |
-| Power-ups work | PASS (partly) | full_run: capsules drop; speed 1→3 and missiles 0→2 collected. **Shield and 1UP pickups are not covered by the bot** (checked by reading the code only) |
+| Power capsules drop randomly from kills | PASS | full_run: capsules drop; the bot climbs to step 4 in stage 1, step 8 in stage 2, step 9 (shockwave) in stage 3 |
+| Every power step works | PASS | power: loadout and firing checked for steps 0–8; up to 31 player shots with spread laser + 2 shooters |
+| Shield | PASS | power: 3-hit shield granted at step 4 |
+| Shockwave | PASS | power: fires on reaching step 9, clears all enemies and bullets, repeats after 600 frames |
+| Death resets power | PASS | power: laser + missiles → ship destroyed → normal shot, no shooters, no shield |
 | Player death works | PASS | death: explosion screenshot, `player_alive` = 0 |
 | Respawn works | PASS | death: respawn + invulnerability window |
 | Lives decrement | PASS | death: 3 → 2 → … → 0 |
@@ -66,19 +71,19 @@ Debug and profile builds also accept test controls written by the script: `ctl_i
 | Metric | Measured | Limit |
 |---|---|---|
 | Frame rate | 59.73 Hz, 0 missed frames | hardware refresh |
-| CPU, average gameplay frame | 29.4 % | 100 % |
-| CPU, worst frame | 75–78 % (boss phase changes and boss fights with 30+ bullets) | 100 % |
-| Hardware sprites, peak | 76 | 128 (OAM) |
+| CPU, average gameplay frame | 31.4 % | 100 % |
+| CPU, worst frame | 85 % (stage 3 boss: 32 bullets, full-power volley and a capsule pickup in one frame) | 100 % |
+| Hardware sprites, peak | 85 | 128 (OAM) |
 | OBJ VRAM tiles, peak | 241 4bpp tiles (7.5 KB) | 1024 (32 KB) |
 | BG VRAM tiles, peak | 704 | 2048 per 64 KB BG VRAM |
 | Enemy bullets, peak | 32 | pool of 32 |
 | Enemies, peak | 9 | pool of 16 |
-| Player shots, peak | 24 | pool of 24 |
-| ROM size | 331,532 bytes (324 KB) | 32 MB |
+| Player shots, peak | 32 | pool of 32 |
+| ROM size | 335,772 bytes (328 KB) | 32 MB |
 
 When a pool is full, spawn requests are dropped (`pool_drops` in telemetry, about 40 per full run, almost all of them during boss fights). This is the intended graceful degradation: nothing is overwritten and the frame budget holds.
 
-The debug build is slower (asserts on). Its worst frame measured 82 %, still with no missed frames.
+The debug build is slower (asserts on). Its worst frame measured 90 %, still with no missed frames.
 
 ### Per-system profile
 
@@ -86,11 +91,23 @@ In test-hook builds `world::update()` times each system with `bn::timer` and wri
 
 | stage | player | shots | enemies | boss | bullets | powerups | collide | effects | terrain | bgs | hud |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 0.0 / 16.7 | 1.5 / 14.9 | 4.9 / 14.1 | 0.8 / 13.5 | 0.2 / 27.7 | 1.1 / 12.1 | 0.2 / 0.7 | 4.0 / 29.1 | 0.9 / 8.1 | 0.1 / 1.9 | 0.1 / 0.2 | 0.4 / 24.2 |
+| 0.0 / 16.9 | 2.1 / 11.4 | 6.6 / 19.5 | 0.7 / 6.3 | 0.1 / 13.8 | 0.9 / 13.7 | 0.3 / 1.9 | 3.7 / 24.4 | 0.8 / 6.7 | 0.1 / 1.9 | 0.1 / 0.4 | 0.4 / 16.6 |
 
-Game logic averages about 14 % of a frame; the rest of the ~29 % is Butano's frame commit (OAM, BG maps, palettes) and Maxmod mixing. Peaks are single frames that create many sprites (boss phase change, big explosions, HUD text redraw).
+`prof_app` also times the whole `app::update()`. Note that `cpu_pct` (`bn::core::last_cpu_usage()`) describes the *previous* frame, so `full_run` pairs each heavy frame with the previous frame's profile.
+
+Game logic averages about 16 % of a frame; the rest of the ~29 % is Butano's frame commit (OAM, BG maps, palettes) and Maxmod mixing. Peaks are single frames that create many sprites (boss phase change, big explosions, HUD text redraw).
 
 The profile found one real hotspot. Terrain collision interpolated the terrain key list (a linear search plus two software divisions, since the ARM7 has no divide instruction) for every shot and bullet each frame. The terrain now caches the ceiling/floor height of the 32 columns in its map ring. That cut the shot system from 8.1 % to 4.9 %, the average frame from 33.4 % to 29.4 %, and the worst frame from 88 % to about 78 %.
+
+The power ladder (up to 32 player shots) brought new peaks. They all came from **sprite creation** (about 2 % of a frame each) and **text rendering** (up to 15 % for a full line), not from per-frame updates:
+
+* `make_sprite` builds sprites with `bn::sprite_builder`, setting priority, z order and camera before insertion. Setting them afterwards re-sorted the sprite once per setter.
+* Enemy bullets create their sprites in `update()`, at most 4 per frame. A mine's 8-bullet burst or a boss ring no longer creates 8+ sprites in one frame. Bullets collide from the frame they are fired.
+* The additional shooters fire the ship's volley one frame after another (at most 3 lasers created per frame).
+* The HUD redraws at most one text item per frame (pickup label, then status line, then score).
+* A shockwave cancels bullets without sparks and delays its big explosion by a frame.
+
+Together these took the boss system's peak from 30 % to 14 % and the worst frame from 91 % to 85 %.
 
 ## 5. Real hardware assessment
 
@@ -110,8 +127,9 @@ For a human check in mGBA (stable 0.10.5 or nightly):
 
 1. `.\build.ps1 -Run`
 2. Title: logo, star scroll, music → START
-3. Stage 1: shoot with A, hold/release B for the charged wave, pick up capsules (watch the bottom status line change)
+3. Stage 1: shoot with A, hold/release B for the charged wave, pick up P capsules (the label names the new power; the bottom line shows the loadout)
 4. START to pause/resume
 5. Let an enemy hit you: explosion, respawn blink, life counter drops
 6. Reach the boss: WARNING banner + siren, boss bar at the top
-7. Debug ROM (`.\build.ps1 -DebugBuild`): L/R on title picks the stage, SELECT toggles the CPU/entity overlay, L+R in-game skips to the boss
+7. Reach the shockwave (step 9): the screen flashes white and clears every 10 s
+8. Debug ROM (`.\build.ps1 -DebugBuild`): L/R on title picks the stage, SELECT toggles the CPU/entity overlay, L+R in-game skips to the boss

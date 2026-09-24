@@ -66,8 +66,8 @@ public:
 
     void update(world& w);
 
-    /// Turns every bullet into a spark (boss death, player respawn safety).
-    void cancel_all(world& w);
+    /// Removes every enemy bullet; a few of them leave a spark unless with_sparks is false.
+    void cancel_all(world& w, bool with_sparks = true);
 
     void release(enemy_bullet& bullet)
     {
@@ -91,6 +91,8 @@ public:
 
 private:
     pool<enemy_bullet, max_enemy_bullets> _pool;
+
+    void _create_sprite(world& w, enemy_bullet& bullet);
 };
 
 }

@@ -5,9 +5,11 @@
 #include "bn_sprite_items_charge_glow.h"
 #include "bn_sprite_items_player.h"
 #include "bn_sprite_items_shield.h"
+#include "bn_sprite_items_shooter.h"
 
 #include "ss_audio.h"
 #include "ss_math.h"
+#include "ss_power_data.h"
 #include "ss_sprite_util.h"
 #include "ss_weapon_data.h"
 #include "ss_world.h"
@@ -30,10 +32,45 @@ player::player(world& w) :
     _sprite = make_sprite(bn::sprite_items::player, _position, 0, z_player, w.camera);
     _frame = 0;
     _invulnerable_frames = 60;
-    refresh_shield_sprite(w);
+    _reset_trail();
+    refresh_power(w, 0);
 }
 
-void player::refresh_shield_sprite(world& w)
+void player::refresh_power(world& w, int previous_power)
+{
+    int power = w.game.gear.power;
+    _refresh_shield_sprite(w);
+
+    int shooters = _state == state::FLYING || _state == state::OUTRO ? shooter_count_of(power) : 0;
+
+    for(int index = 0; index < 2; ++index)
+    {
+        if(index < shooters)
+        {
+            if(! _shooter_sprites[index])
+            {
+                _shooter_sprites[index] = make_sprite(bn::sprite_items::shooter, _shooter_position(index), 0,
+                                                      z_player + 1, w.camera);
+                _shooter_frames[index] = 0;
+            }
+        }
+        else
+        {
+            _shooter_sprites[index].reset();
+        }
+    }
+
+    if(has_power(power, power_step::SHOCKWAVE) && ! has_power(previous_power, power_step::SHOCKWAVE))
+    {
+        _wave_timer = shockwave_interval - 1;   // first shockwave right away
+    }
+    else if(! has_power(power, power_step::SHOCKWAVE))
+    {
+        _wave_timer = 0;
+    }
+}
+
+void player::_refresh_shield_sprite(world& w)
 {
     if(w.game.gear.shield > 0 && (_state == state::FLYING || _state == state::OUTRO))
     {
@@ -59,6 +96,7 @@ void player::update(world& w)
         _move(w);
         _fire(w);
         _update_charge(w);
+        _update_shockwave(w);
 
         if(_invulnerable_frames)
         {
@@ -82,6 +120,7 @@ void player::update(world& w)
 
     case state::OUTRO:
         _position.set_x(_position.x() + bn::fixed(0.5) + bn::fixed(_anim_counter & 63) / 16);
+        _record_trail();
         _charge = 0;
         _charge_sprite.reset();
         break;
@@ -97,7 +136,8 @@ void player::_move(world& w)
 {
     int dx = int(bn::keypad::right_held()) - int(bn::keypad::left_held());
     int dy = int(bn::keypad::down_held()) - int(bn::keypad::up_held());
-    bn::fixed speed = speed_by_level[w.game.gear.speed_level - 1];
+    bn::fixed speed = player_speed;
+    (void) w;
 
     if(dx && dy)
     {
@@ -107,6 +147,7 @@ void player::_move(world& w)
     bn::fixed x = bn::clamp(_position.x() + speed * dx, bn::fixed(min_x), bn::fixed(max_x));
     bn::fixed y = bn::clamp(_position.y() + speed * dy, bn::fixed(min_y), bn::fixed(max_y));
     _position = bn::fixed_point(x, y);
+    _record_trail();
 
     // Banking: lean after holding a vertical direction for a few frames.
     if(dy != _bank)
@@ -125,7 +166,7 @@ void player::_move(world& w)
 
 void player::_fire(world& w)
 {
-    const loadout& gear = w.game.gear;
+    int power = w.game.gear.power;
 
     if(_fire_cooldown)
     {
@@ -137,6 +178,25 @@ void player::_fire(world& w)
         --_missile_cooldown;
     }
 
+    if(_dot_cooldown)
+    {
+        --_dot_cooldown;
+    }
+
+    // Shooters fire the ship's volley one frame after another, so a full-power volley (9 lasers)
+    // creates at most 3 sprites per frame.
+    int shooters = shooter_count_of(power);
+
+    if(_shooter_volley > 0)
+    {
+        if(_shooter_volley <= shooters)
+        {
+            _fire_gun(w, _shooter_position(shooters - _shooter_volley));
+        }
+
+        --_shooter_volley;
+    }
+
     if(! w.fire_held())
     {
         return;
@@ -144,32 +204,90 @@ void player::_fire(world& w)
 
     if(! _fire_cooldown)
     {
-        const weapon_def& weapon = weapon_defs[int(gear.weapon)];
-        const weapon_level_def& level = weapon.levels[gear.weapon_level - 1];
-
-        for(int index = 0; index < level.count; ++index)
-        {
-            const shot_spec& spec = level.shots[index];
-            w.shots.fire(w, weapon.kind, _position + bn::fixed_point(10, spec.dy), bn::fixed_point(spec.vx, spec.vy),
-                         level.damage);
-        }
-
-        _fire_cooldown = level.fire_interval;
-        audio::play(weapon.kind == shot_kind::SPREAD ? audio::sfx::SPREAD : audio::sfx::SHOT);
+        const gun_def& gun = gun_defs[int(main_gun_of(power))];
+        _fire_gun(w, _position);
+        _shooter_volley = shooters;
+        _fire_cooldown = gun.fire_interval;
+        audio::play(gun.kind == shot_kind::LASER ? audio::sfx::SPREAD : audio::sfx::SHOT);
     }
 
-    if(gear.missile_level > 0 && ! _missile_cooldown && w.shots.missile_count() < gear.missile_level * 2)
+    if(has_power(power, power_step::HOMING_DOT) && ! _dot_cooldown && w.shots.count_of(shot_kind::DOT) < max_dots)
     {
-        w.shots.fire_missile(w, _position + bn::fixed_point(2, 6), degrees(35));
-
-        if(gear.missile_level > 1)
-        {
-            w.shots.fire_missile(w, _position + bn::fixed_point(2, -6), degrees(-35));
-        }
-
-        _missile_cooldown = missile_interval;
-        audio::play(audio::sfx::MISSILE);
+        w.shots.fire_dot(w, _position + bn::fixed_point(6, -4));
+        _dot_cooldown = dot_interval;
     }
+
+    missile_mode missiles = missile_mode_of(power);
+
+    if(missiles == missile_mode::FORWARD)
+    {
+        if(! _missile_cooldown && w.shots.count_of(shot_kind::MISSILE) < max_forward_missiles)
+        {
+            w.shots.fire_missile(w, _position + bn::fixed_point(2, 6), degrees(20), false);
+            _missile_cooldown = missile_interval;
+            audio::play(audio::sfx::MISSILE);
+        }
+    }
+    else if(missiles == missile_mode::HOMING)
+    {
+        if(! _missile_cooldown && w.shots.count_of(shot_kind::MISSILE) < max_homing_missiles)
+        {
+            w.shots.fire_missile(w, _position + bn::fixed_point(2, 6), degrees(35), true);
+            w.shots.fire_missile(w, _position + bn::fixed_point(2, -6), degrees(-35), true);
+            _missile_cooldown = missile_interval;
+            audio::play(audio::sfx::MISSILE);
+        }
+    }
+}
+
+void player::_fire_gun(world& w, const bn::fixed_point& origin)
+{
+    const gun_def& gun = gun_defs[int(main_gun_of(w.game.gear.power))];
+
+    for(int index = 0; index < gun.count; ++index)
+    {
+        const shot_spec& spec = gun.shots[index];
+        w.shots.fire(w, gun.kind, origin + bn::fixed_point(10, spec.dy), bn::fixed_point(spec.vx, spec.vy),
+                     gun.damage);
+    }
+}
+
+void player::_update_shockwave(world& w)
+{
+    if(! has_power(w.game.gear.power, power_step::SHOCKWAVE))
+    {
+        return;
+    }
+
+    if(++_wave_timer >= shockwave_interval)
+    {
+        _wave_timer = 0;
+        w.shockwave();
+    }
+}
+
+void player::_record_trail()
+{
+    if(_trail[_trail_head] != _position)
+    {
+        _trail_head = (_trail_head + 1) & (trail_size - 1);
+        _trail[_trail_head] = _position;
+    }
+}
+
+void player::_reset_trail()
+{
+    // Start as a straight line behind the ship (1 px per entry), so the shooters begin in a row
+    // behind it instead of stacked under it.
+    for(int age = 0; age < trail_size; ++age)
+    {
+        _trail[(_trail_head - age) & (trail_size - 1)] = _position - bn::fixed_point(age, 0);
+    }
+}
+
+bn::fixed_point player::_shooter_position(int index) const
+{
+    return _trail[(_trail_head - (index + 1) * shooter_spacing) & (trail_size - 1)];
 }
 
 void player::_update_charge(world& w)
@@ -235,7 +353,7 @@ bool player::hit(world& w)
         _invulnerable_frames = 60;
         audio::play(audio::sfx::SHIELD_HIT);
         w.fx.spark(w, _position);
-        refresh_shield_sprite(w);
+        _refresh_shield_sprite(w);
         return true;
     }
 
@@ -255,11 +373,11 @@ bool player::hit(world& w)
     --w.game.lives;
     ++w.game.deaths;
 
-    // Losing a ship costs one level of every upgrade.
+    // Losing a ship resets the power ladder to the normal shot.
+    int previous_power = gear.power;
     gear.shield = 0;
-    gear.weapon_level = bn::max(1, gear.weapon_level - 1);
-    gear.missile_level = bn::max(0, gear.missile_level - 1);
-    gear.speed_level = bn::max(1, gear.speed_level - 1);
+    gear.power = 0;
+    refresh_power(w, previous_power);
 
     if(w.game.lives <= 0)
     {
@@ -277,6 +395,7 @@ void player::_respawn(world& w)
     _invulnerable_frames = invulnerable_frames;
     _bank = 0;
     _fire_cooldown = 10;
+    _reset_trail();
     w.bullets.cancel_all(w);
 }
 
@@ -311,6 +430,17 @@ void player::_update_sprites(world& w)
     if(_charge_sprite)
     {
         _charge_sprite->set_position(_position + bn::fixed_point(12, 0));
+    }
+
+    for(int index = 0; index < 2; ++index)
+    {
+        if(_shooter_sprites[index])
+        {
+            _shooter_sprites[index]->set_position(_shooter_position(index));
+            _shooter_sprites[index]->set_visible(visible);
+            set_frame(_shooter_sprites[index], bn::sprite_items::shooter, _shooter_frames[index],
+                      ((_anim_counter >> 3) + index) & 1);
+        }
     }
 
     (void) w;

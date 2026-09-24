@@ -22,11 +22,12 @@ struct player_shot
     bn::fixed_point position;
     bn::fixed_point velocity;
     int damage = 0;
-    int angle = 0;              // missiles: binary angle (65536 = turn), y-down
+    int angle = 0;              // missiles and dots: binary angle (65536 = turn), y-down
+    bool homing = false;        // missiles and dots: steer toward the nearest target
     int frame = -1;
     int life = 0;
-    unsigned hit_mask = 0;      // beams: enemies already hit (bit per enemy slot, bit 31 = boss)
-    int boss_cooldown = 0;      // beams: frames until the boss can be hit again
+    unsigned hit_mask = 0;      // piercing shots: enemies already hit (bit per enemy slot)
+    int boss_cooldown = 0;      // charged beam: frames until the boss can be hit again
     bn::optional<bn::sprite_ptr> sprite;
 
     void clear()
@@ -39,7 +40,7 @@ struct player_shot
 
     [[nodiscard]] bool pierces() const
     {
-        return kind == shot_kind::BEAM;
+        return kind == shot_kind::BEAM || kind == shot_kind::LASER;
     }
 };
 
@@ -50,7 +51,9 @@ public:
     void fire(world& w, shot_kind kind, const bn::fixed_point& position, const bn::fixed_point& velocity,
               int damage);
 
-    void fire_missile(world& w, const bn::fixed_point& position, int angle);
+    void fire_missile(world& w, const bn::fixed_point& position, int angle, bool homing);
+
+    void fire_dot(world& w, const bn::fixed_point& position);
 
     void update(world& w);
 
@@ -69,7 +72,8 @@ public:
         return _pool.dropped();
     }
 
-    [[nodiscard]] int missile_count() const;
+    /// Active shots of one kind (caps for missiles and dots).
+    [[nodiscard]] int count_of(shot_kind kind) const;
 
     pool<player_shot, max_player_shots>& items()
     {
@@ -79,7 +83,7 @@ public:
 private:
     pool<player_shot, max_player_shots> _pool;
 
-    void _steer_missile(world& w, player_shot& shot);
+    void _steer(world& w, player_shot& shot, int turn_rate, bn::fixed speed);
 };
 
 }

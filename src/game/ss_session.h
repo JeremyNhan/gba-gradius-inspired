@@ -6,19 +6,10 @@
 namespace ss
 {
 
-enum class weapon_type : unsigned char
-{
-    NORMAL,
-    SPREAD
-};
-
-/// Player equipment carried between stages (lost partially on death).
+/// Player equipment carried between stages (reset when a ship is lost).
 struct loadout
 {
-    weapon_type weapon = weapon_type::NORMAL;
-    int weapon_level = 1;       // 1..max_weapon_level
-    int missile_level = 0;      // 0..max_missile_level
-    int speed_level = 1;        // 1..max_speed_level
+    int power = 0;              // step on the power ladder, 0..max_power (see ss_power_data.h)
     int shield = 0;             // hits absorbed, 0..max_shield
 };
 

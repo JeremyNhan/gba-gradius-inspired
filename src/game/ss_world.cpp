@@ -1,12 +1,15 @@
 #include "ss_world.h"
 
+#include "bn_bg_palettes.h"
 #include "bn_core.h"
 #include "bn_keypad.h"
+#include "bn_sprite_palettes.h"
 #include "bn_sprites.h"
 #include "bn_timer.h"
 #include "bn_timers.h"
 
 #include "ss_audio.h"
+#include "ss_power_data.h"
 #include "ss_telemetry.h"
 #include "ss_text.h"
 
@@ -110,6 +113,12 @@ world::result world::update()
         bullets.cancel_all(*this);
         runner.skip_to_boss(*this);
     }
+
+    if(ss_telemetry.ctl_set_power)
+    {
+        set_power(bn::min(int(ss_telemetry.ctl_set_power) - 1, max_power));
+        ss_telemetry.ctl_set_power = 0;
+    }
 #endif
 
     scroll_x += scroll_speed;
@@ -145,6 +154,7 @@ world::result world::update()
     SS_PROFILE(9);
     bgs.update(scroll_x);
     _update_camera();
+    _update_flash();
     SS_PROFILE(10);
     display.update(*this);
     SS_PROFILE(11);
@@ -174,6 +184,7 @@ bool world::update_outro()
     ground.update(scroll_x);
     bgs.update(scroll_x);
     _update_camera();
+    _update_flash();
     _update_telemetry();
     return ship.outro_done();
 }
@@ -221,7 +232,9 @@ void world::_collide()
             continue;
         }
 
-        if(shot.pierces())
+        // The charged beam passes through the boss (with a hit cooldown); everything else, lasers
+        // included, is stopped by it.
+        if(shot.kind == shot_kind::BEAM)
         {
             if(! shot.boss_cooldown && big_boss.take_hit(*this, shot_box, shot.damage))
             {
@@ -298,6 +311,49 @@ void world::_collide()
     }
 }
 
+void world::set_power(int power)
+{
+    loadout& gear = game.gear;
+    int previous = gear.power;
+    gear.power = bn::clamp(power, 0, max_power);
+
+    if(has_power(gear.power, power_step::SHIELD) && ! has_power(previous, power_step::SHIELD))
+    {
+        gear.shield = max_shield;
+    }
+
+    ship.refresh_power(*this, previous);
+}
+
+void world::shockwave()
+{
+    // Everything here creates sprites, so it is kept light: no bullet sparks (the white flash covers
+    // it), enemy explosions staggered by enemies::shockwave(), the big explosion delayed one frame.
+    ++shockwaves;
+    foes.shockwave(*this);
+    bullets.cancel_all(*this, false);
+    big_boss.shockwave_hit(*this);
+    ship.shockwave_invulnerability(shockwave_invulnerable_frames);
+    fx.explosion_big(*this, ship.position() + bn::fixed_point(24, 0), 1);
+    shake(20, 3);
+    audio::play(audio::sfx::EXPLODE_BIG);
+    _flash_frames = 10;
+}
+
+void world::_update_flash()
+{
+    if(! _flash_frames)
+    {
+        return;
+    }
+
+    // White screen flash, fading out (palette fade: no extra sprites or layers needed).
+    --_flash_frames;
+    bn::fixed intensity = bn::fixed(_flash_frames) / 16;
+    bn::bg_palettes::set_fade(bn::color(31, 31, 31), intensity);
+    bn::sprite_palettes::set_fade(bn::color(31, 31, 31), intensity);
+}
+
 void world::_update_camera()
 {
     if(_shake_frames > 0)
@@ -333,10 +389,11 @@ void world::_update_telemetry()
     t.player_shots = (uint8_t) shots.count();
     t.effects = (uint8_t) fx.count();
     t.powerups = (uint8_t) items.count();
-    t.weapon = (uint8_t) game.gear.weapon;
-    t.weapon_level = (uint8_t) game.gear.weapon_level;
-    t.missile_level = (uint8_t) game.gear.missile_level;
-    t.speed_level = (uint8_t) game.gear.speed_level;
+    t.gun = (uint8_t) main_gun_of(game.gear.power);
+    t.power = (uint8_t) game.gear.power;
+    t.missiles = (uint8_t) missile_mode_of(game.gear.power);
+    t.shooters = (uint8_t) shooter_count_of(game.gear.power);
+    t.shockwaves = (uint16_t) shockwaves;
     t.shield = (uint8_t) game.gear.shield;
     t.pool_drops = (uint16_t) (shots.dropped() + foes.dropped() + bullets.dropped() + fx.dropped());
     t.player_alive = ship.alive() ? 1 : 0;

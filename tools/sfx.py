@@ -100,7 +100,7 @@ def build_all():
     s['sfx_explode_big'] = _mix(_noise(1.0, 1.0, seed=17, curve=1.3, lowpass_start=0.5, lowpass_end=0.02, hold=3),
                                 _sweep(120, 35, 1.0, 'sine', 0.6, curve=1.2))
     s['sfx_pickup'] = _tones([660, 880, 1320], 0.05, 'square', 0.4, duty=0.25)
-    s['sfx_oneup'] = _tones([523, 659, 784, 1047, 784, 1047], 0.06, 'square', 0.4, duty=0.5)
+    s['sfx_power_max'] = _tones([523, 659, 784, 1047, 784, 1047], 0.06, 'square', 0.4, duty=0.5)
     s['sfx_player_death'] = _mix(_sweep(900, 60, 0.9, 'square', 0.35, curve=0.9, duty=0.5),
                                  _noise(0.9, 0.6, seed=19, curve=1.1, lowpass_start=0.7, lowpass_end=0.03, hold=2))
     s['sfx_warning'] = _concat(*([_sweep(880, 880, 0.18, 'square', 0.45, curve=0.2),

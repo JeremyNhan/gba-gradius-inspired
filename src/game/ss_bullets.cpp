@@ -44,11 +44,17 @@ void enemy_bullets::fire(world& w, bullet_kind kind, const bn::fixed_point& posi
     bullet->velocity = velocity;
     bullet->timer = 0;
     bullet->frame = 0;
-    bullet->sprite = make_sprite(item_of(kind), position, 0, z_bullets, w.camera);
+    (void) w;       // the sprite is created by update() (see _create_sprite)
+}
 
-    if(bullet->sprite && kind == bullet_kind::NEEDLE && velocity.x() > 0)
+void enemy_bullets::_create_sprite(world& w, enemy_bullet& bullet)
+{
+    bullet.frame = 0;
+    bullet.sprite = make_sprite(item_of(bullet.kind), bullet.position, 0, z_bullets, w.camera);
+
+    if(bullet.sprite && bullet.kind == bullet_kind::NEEDLE && bullet.velocity.x() > 0)
     {
-        bullet->sprite->set_horizontal_flip(true);
+        bullet.sprite->set_horizontal_flip(true);
     }
 }
 
@@ -83,11 +89,23 @@ void enemy_bullets::fire_fan(world& w, bullet_kind kind, const bn::fixed_point& 
 
 void enemy_bullets::update(world& w)
 {
+    // Creating a sprite costs about 2 % of a frame, and patterns such as rings or a mine burst fire
+    // 8+ bullets at once. Bullets exist (and collide) as soon as they are fired, but at most
+    // sprite_budget of them get their sprite per frame; the rest appear on the following frames.
+    constexpr int sprite_budget = 4;
+    int budget = sprite_budget;
+
     for(enemy_bullet& bullet : _pool)
     {
         if(! bullet.active)
         {
             continue;
+        }
+
+        if(! bullet.sprite && budget > 0)
+        {
+            _create_sprite(w, bullet);
+            --budget;
         }
 
         bullet.position += bullet.velocity;
@@ -111,12 +129,12 @@ void enemy_bullets::update(world& w)
     }
 }
 
-void enemy_bullets::cancel_all(world& w)
+void enemy_bullets::cancel_all(world& w, bool with_sparks)
 {
     // Only a handful of bullets get a spark: creating dozens of sprites in a single frame would
     // blow the frame budget (measured: >100% CPU on boss phase changes without this cap).
     constexpr int max_sparks = 5;
-    int sparks = 0;
+    int sparks = with_sparks ? 0 : max_sparks;
 
     for(enemy_bullet& bullet : _pool)
     {

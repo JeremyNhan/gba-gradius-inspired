@@ -15,7 +15,7 @@ enum class sfx : unsigned char
     EXPLODE,
     EXPLODE_BIG,
     PICKUP,
-    ONE_UP,
+    POWER_MAX,      // reaching the top of the power ladder
     PLAYER_DEATH,
     WARNING,
     SELECT,

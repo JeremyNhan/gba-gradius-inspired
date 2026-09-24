@@ -25,55 +25,54 @@ Difficulty scales by stage: enemy fire intervals get shorter, and darts only sta
 
 | Button | Action |
 |---|---|
-| D-pad | Move (8 directions; diagonal speed normalised) |
-| A (hold) | Fire the primary weapon; missiles fire automatically once collected |
+| D-pad | Move (8 directions, 2 px/frame; diagonal speed normalised) |
+| A (hold) | Fire the main gun; homing dots and missiles fire automatically once earned |
 | B (hold, release) | Charge (45 frames) and release a piercing wave |
 | START | Start / pause / resume |
 | SELECT, L, R | Debug ROM only (see README) |
 
 ## Player
 
-* 3 lives (max 9). Touching an enemy, a bullet, a boss or the terrain costs a life.
+* 3 lives. Touching an enemy, a bullet, a boss or the terrain costs a life. There is no way to earn extra lives.
 * After death: 90-frame respawn, then 150 frames of invulnerability (blinking).
-* Death penalty: shield lost; weapon level, missile level and speed each drop by one step (never below the base level).
-* Shield: absorbs 3 hits.
+* Death penalty: the power ladder resets to the normal shot (shield lost as well).
 
-## Weapons (data in `src/data/ss_weapon_data.h`)
+## Power ladder (data in `src/data/ss_power_data.h` and `src/data/ss_weapon_data.h`)
 
-| Weapon | HUD | Levels 1 → 3 |
+Every destroyed enemy has a chance to drop a **P** capsule (see the drop column in the enemy table). Each capsule collected moves the ship **one step up** the ladder. Powers are cumulative by slot: the main gun is upgraded in place, missiles become homing, everything else is added on top.
+
+| Step | Power | Effect |
 |---|---|---|
-| Normal shot | `SHOT` | 1 → 2 → 3 parallel fast bolts (7 px/frame) |
-| Spread shot | `WIDE` | 3 → 5 → 5 stronger pellets in a fan, slower |
-| Homing missiles (secondary) | `MSL` | Level 1: single missiles (up to 2 on screen); level 2: pairs (up to 4). They turn toward the nearest target |
-| Charged wave | — | Hold B; 12 damage, passes through enemies and terrain |
+| 0 | Normal shot | Start: single fast bolt (7 px/frame, 2 damage) |
+| 1 | Homing dot | + a small pellet every 20 frames that steers toward the nearest enemy (max 2 on screen) |
+| 2 | Missile | + forward missiles angled down-forward (3 damage, max 2 on screen) |
+| 3 | Laser | Main gun becomes a long laser that pierces enemies (stopped by bosses and terrain) |
+| 4 | Shield | + 3-hit shield |
+| 5 | Spread laser | Main gun fires three lasers (straight, up and down) |
+| 6 | Shooter | + one additional shooter: a drone that follows the ship's path and fires the main gun |
+| 7 | 2 shooters | + a second shooter |
+| 8 | Homing missile | Missiles fire in pairs (up and down) and home in (max 4 on screen) |
+| 9 | Shockwave | Fires immediately, then every 10 s: destroys all enemies and bullets on screen (with score), takes 10 % of the boss's max HP, 0.5 s invulnerability, white screen flash |
 
-## Power-ups
-
-Carrier enemies (and completed carrier formations) drop a capsule. Drops follow a fixed rotation (SHOT, MISSILE, SPEED, SPREAD, SHIELD, …, LIFE), so a given play always produces the same drops. Capsules for upgrades that are already maxed are skipped.
-
-| Capsule | Effect |
-|---|---|
-| SHOT | Switch to normal shot, or +1 level if already equipped |
-| SPREAD | Switch to spread shot, or +1 level |
-| MISSILE | +1 missile level (max 2) |
-| SPEED | +1 speed level (1.5 / 2.0 / 2.5 px per frame) |
-| SHIELD | Full 3-hit shield |
-| LIFE | +1 life |
-
-Picking up a capsule gives 200 points, or 1000 if it upgraded nothing.
+* A capsule gives 200 points. At step 9, further capsules refill the shield and give 1000 points ("FULL POWER").
+* The HUD bottom line shows the loadout, e.g. `P9 S.LASER x3 DOT HMSL SHLD3 WAVE` (step, gun, gun count including shooters, extras).
+* Drops use the world's seeded random generator, so a given play (same inputs) produces the same drops.
+* Charged wave (B): 12 damage, passes through enemies and terrain. It is available at every step.
 
 ## Enemies (data in `src/game/ss_enemies.cpp`)
 
-| Enemy | Plan role | Behaviour | HP | Score |
-|---|---|---|---|---|
-| Dart | A: basic fighter | Straight flight, aimed shot (stage 2+) | 2 | 100 |
-| Waver | B: sinusoidal | Sine wave, straight shots | 2 | 150 |
-| Interceptor | C: fast | Rushes in, stops, fires a 3-shot burst, dashes | 3 | 250 |
-| Turret | D: turret | Mounted on floor or ceiling, barrel tracks the player | 5 | 300 |
-| Gunship (Hulk) | E: armoured | Large, hovers, 3-way aimed spread | 40 | 2000 |
-| Swarm drone | F: formation | Flies loops in formation | 1 | 100 |
-| Mine | G: hazard | Drifts; bursts into an 8-way bullet ring when destroyed | 4 | 200 |
-| Asteroid (small/big) | G: hazard | Tumbling debris; big ones split into small ones | 5 / 18 | 50 / 400 |
+| Enemy | Plan role | Behaviour | HP | Score | Drop |
+|---|---|---|---|---|---|
+| Dart | A: basic fighter | Straight flight, aimed shot (stage 2+) | 2 | 100 | 8 % |
+| Waver | B: sinusoidal | Sine wave, straight shots | 2 | 150 | 8 % |
+| Interceptor | C: fast | Rushes in, stops, fires a 3-shot burst, dashes | 3 | 250 | 12 % |
+| Turret | D: turret | Mounted on floor or ceiling, barrel tracks the player | 5 | 300 | 15 % |
+| Gunship (Hulk) | E: armoured | Large, hovers, 3-way aimed spread | 40 | 2000 | 100 % |
+| Swarm drone | F: formation | Flies loops in formation | 1 | 100 | 5 % |
+| Mine | G: hazard | Drifts; bursts into an 8-way bullet ring when destroyed | 4 | 200 | 10 % |
+| Asteroid (small/big) | G: hazard | Tumbling debris; big ones split into small ones | 5 / 18 | 50 / 400 | 3 % / 25 % |
+
+Destroying every member of a bonus formation gives +500. Enemies wiped out by a shockwave give their score but never drop capsules.
 
 Formations: line, V, column, wave, swarm loop, mine field.
 
@@ -96,4 +95,4 @@ Score comes from enemies, bosses and capsules. The high score is stored in cartr
 * Mode 0 with 3 scrolling layers: far starfield (×0.25), stage backdrop (×0.5), terrain (×1). The title uses the fourth layer for the logo.
 * One 16-colour master sprite palette plus a boss palette: high-contrast 16-bit style.
 * Hit flashes, explosions and sparks, screen shake on big explosions and player hits, palette fades between screens.
-* 4-channel MOD music (title, 3 stages, boss, ending, stage-clear and game-over jingles) and 8-bit WAV sound effects (shots, missile, charge-ready, beam, hits, shield hit, explosions, player death, pickup, 1UP, warning siren, menu select, pause), all generated by `tools/`.
+* 4-channel MOD music (title, 3 stages, boss, ending, stage-clear and game-over jingles) and 8-bit WAV sound effects (shots, missile, charge-ready, beam, hits, shield hit, explosions, player death, pickup, full-power jingle, warning siren, menu select, pause), all generated by `tools/`.

@@ -1,6 +1,7 @@
 #include "ss_shots.h"
 
 #include "bn_sprite_items_shot_charge.h"
+#include "bn_sprite_items_shot_laser.h"
 #include "bn_sprite_items_shot_missile.h"
 #include "bn_sprite_items_shot_normal.h"
 #include "bn_sprite_items_shot_spread.h"
@@ -19,7 +20,10 @@ namespace
         switch(kind)
         {
 
-        case shot_kind::SPREAD:
+        case shot_kind::LASER:
+            return bn::sprite_items::shot_laser;
+
+        case shot_kind::DOT:
             return bn::sprite_items::shot_spread;
 
         case shot_kind::MISSILE:
@@ -31,6 +35,12 @@ namespace
         default:
             return bn::sprite_items::shot_normal;
         }
+    }
+
+    /// Laser frames: 0 level, 1 rising, 2 falling (spread laser diagonals).
+    int laser_frame(const bn::fixed_point& velocity)
+    {
+        return velocity.y() < 0 ? 1 : velocity.y() > 0 ? 2 : 0;
     }
 
     /// Missile sprite frames are drawn every 45 degrees counter-clockwise (visually) from "right".
@@ -48,10 +58,11 @@ hitbox player_shot::box() const
     case shot_kind::BEAM:
         return make_hitbox(position, 13, 7);
 
-    case shot_kind::MISSILE:
-        return make_hitbox(position, 3, 3);
+    case shot_kind::LASER:
+        return make_hitbox(position, 12, 2);
 
-    case shot_kind::SPREAD:
+    case shot_kind::MISSILE:
+    case shot_kind::DOT:
         return make_hitbox(position, 3, 3);
 
     default:
@@ -77,10 +88,39 @@ void player_shots::fire(world& w, shot_kind kind, const bn::fixed_point& positio
     shot->life = 0;
     shot->hit_mask = 0;
     shot->boss_cooldown = 0;
-    shot->sprite = make_sprite(item_of(kind), position, 0, z_shots, w.camera);
+    shot->homing = false;
+
+    if(kind == shot_kind::LASER)
+    {
+        shot->frame = laser_frame(velocity);
+    }
+
+    shot->sprite = make_sprite(item_of(kind), position, shot->frame, z_shots, w.camera);
 }
 
-void player_shots::fire_missile(world& w, const bn::fixed_point& position, int angle)
+void player_shots::fire_dot(world& w, const bn::fixed_point& position)
+{
+    player_shot* shot = _pool.spawn();
+
+    if(! shot)
+    {
+        return;
+    }
+
+    shot->kind = shot_kind::DOT;
+    shot->position = position;
+    shot->angle = 0;
+    shot->homing = true;
+    shot->velocity = bn::fixed_point(dot_speed, 0);
+    shot->damage = dot_damage;
+    shot->life = 0;
+    shot->hit_mask = 0;
+    shot->boss_cooldown = 0;
+    shot->frame = 0;
+    shot->sprite = make_sprite(bn::sprite_items::shot_spread, position, 0, z_shots, w.camera);
+}
+
+void player_shots::fire_missile(world& w, const bn::fixed_point& position, int angle, bool homing)
 {
     player_shot* shot = _pool.spawn();
 
@@ -92,6 +132,7 @@ void player_shots::fire_missile(world& w, const bn::fixed_point& position, int a
     shot->kind = shot_kind::MISSILE;
     shot->position = position;
     shot->angle = angle & 0xFFFF;
+    shot->homing = homing;
     shot->velocity = direction(shot->angle, missile_speed);
     shot->damage = missile_damage;
     shot->life = 0;
@@ -101,13 +142,13 @@ void player_shots::fire_missile(world& w, const bn::fixed_point& position, int a
     shot->sprite = make_sprite(bn::sprite_items::shot_missile, position, shot->frame, z_shots, w.camera);
 }
 
-int player_shots::missile_count() const
+int player_shots::count_of(shot_kind kind) const
 {
     int result = 0;
 
     for(const player_shot& shot : _pool)
     {
-        if(shot.active && shot.kind == shot_kind::MISSILE)
+        if(shot.active && shot.kind == kind)
         {
             ++result;
         }
@@ -116,7 +157,7 @@ int player_shots::missile_count() const
     return result;
 }
 
-void player_shots::_steer_missile(world& w, player_shot& shot)
+void player_shots::_steer(world& w, player_shot& shot, int turn_rate, bn::fixed speed)
 {
     bn::optional<bn::fixed_point> target = w.foes.nearest_target(shot.position);
 
@@ -130,20 +171,19 @@ void player_shots::_steer_missile(world& w, player_shot& shot)
         int wanted = angle_to(shot.position, *target);
         int delta = angle_delta(shot.angle, wanted);
 
-        if(delta > missile_turn_rate)
+        if(delta > turn_rate)
         {
-            delta = missile_turn_rate;
+            delta = turn_rate;
         }
-        else if(delta < -missile_turn_rate)
+        else if(delta < -turn_rate)
         {
-            delta = -missile_turn_rate;
+            delta = -turn_rate;
         }
 
         shot.angle = (shot.angle + delta) & 0xFFFF;
     }
 
-    shot.velocity = direction(shot.angle, missile_speed);
-    set_frame(shot.sprite, bn::sprite_items::shot_missile, shot.frame, missile_frame(shot.angle));
+    shot.velocity = direction(shot.angle, speed);
 }
 
 void player_shots::update(world& w)
@@ -164,7 +204,15 @@ void player_shots::update(world& w)
 
         if(shot.kind == shot_kind::MISSILE)
         {
-            _steer_missile(w, shot);
+            if(shot.homing)
+            {
+                _steer(w, shot, missile_turn_rate, missile_speed);
+                set_frame(shot.sprite, bn::sprite_items::shot_missile, shot.frame, missile_frame(shot.angle));
+            }
+        }
+        else if(shot.kind == shot_kind::DOT)
+        {
+            _steer(w, shot, dot_turn_rate, dot_speed);
         }
         else if(shot.kind == shot_kind::BEAM)
         {

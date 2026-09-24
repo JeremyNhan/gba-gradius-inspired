@@ -345,6 +345,37 @@ def missile():
     return vstack(frames), 8
 
 
+def laser():
+    """32x8 laser bolt. Frames: level, rising (spread laser upper), falling (spread laser lower).
+    The diagonal slope (about 0.19) matches the spread laser velocity in ss_weapon_data.h."""
+    frames = []
+    for slope in (0.0, -0.19, 0.19):
+        c = Canvas(32, 8)
+        for x in range(3, 30):
+            y = 3.5 + (x - 16) * slope
+            yi = int(round(y))
+            c.set(x, yi - 1, M['b'])
+            c.set(x, yi, M['c'] if x < 8 else M['W'])
+            c.set(x, yi + 1, M['c'] if slope == 0 or x < 8 else M['b'])
+        frames.append(c)
+    return vstack(frames), 8
+
+
+def shooter():
+    """16x16 additional shooter (trailing drone). Two pulse frames."""
+    frames = []
+    for i in range(2):
+        c = Canvas(16, 16)
+        r = 5.5 if i == 0 else 6
+        c.ellipse(7.5, 7.5, r, r * 0.85, M['m'])
+        c.ellipse(7.5, 7.5, r - 1, r * 0.85 - 1, M['o'])
+        c.ellipse(8, 7, 3, 2.5, M['y'])
+        c.ellipse(9, 6, 1.2, 1, M['W'])
+        c.outline(M['K'])
+        frames.append(c)
+    return vstack(frames), 16
+
+
 def charge_shot():
     frames = []
     for i in range(2):
@@ -474,8 +505,9 @@ def _letter(c, ch, ox, oy, col):
 
 
 def powerups():
-    """Frames: SPEED, SHOT, SPREAD, MISSILE, SHIELD, LIFE (order matches powerup_type in C++)."""
-    specs = [('S', 'b', 'n'), ('P', 'r', 'm'), ('W', 'g', 'G'), ('M', 'o', 'm'), ('O', 'c', 'b'), ('1', 'p', 'v')]
+    """Power capsule: each one collected advances the power ladder by one step.
+    Frame 0 normal, frame 1 highlighted (blink)."""
+    specs = [('P', 'r', 'm'), ('P', 'o', 'r')]
     frames = []
     for ch, light, dark in specs:
         c = Canvas(16, 16)
