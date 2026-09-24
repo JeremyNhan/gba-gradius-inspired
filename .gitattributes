@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.gba binary
+*.bmp binary
+*.png binary
+*.mod binary
+*.wav binary

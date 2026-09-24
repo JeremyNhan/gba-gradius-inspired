@@ -1,0 +1,20 @@
+# build outputs
+/build/
+/build_debug/
+/build_profile/
+*.elf
+*.elf.*
+spaceshooter_debug.gba
+spaceshooter_profile.gba
+*.sav
+*.ss[0-9]
+
+# generated from tools/ at build time
+/assets/generated/
+
+# test artefacts
+/tests/out/
+
+# local tools
+/tools/emulator/
+__pycache__/
