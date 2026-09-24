@@ -1,0 +1,3 @@
+[submodule "external/butano"]
+	path = external/butano
+	url = https://github.com/GValiente/butano.git
