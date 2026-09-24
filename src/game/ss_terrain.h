@@ -65,7 +65,14 @@ private:
     int _next_column = 0;       // next world column to write
     bool _dirty = false;
 
+    // Heights of the columns currently in the map ring (world columns [_next_column - columns, _next_column)),
+    // indexed like the map. Collision queries hit this instead of interpolating the key list, which costs a
+    // linear search and two software divisions (the ARM7 has no divide instruction) per column.
+    signed char _ceiling_cache[columns] = {};
+    signed char _floor_cache[columns] = {};
+
     void _height_at(int world_column, int& ceiling, int& floor) const;
+    void _cached_height_at(int world_column, int& ceiling, int& floor) const;
     void _write_column(int world_column);
 };
 

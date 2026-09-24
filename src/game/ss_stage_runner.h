@@ -25,11 +25,6 @@ public:
         return _boss_started;
     }
 
-    [[nodiscard]] int next_event() const
-    {
-        return _next;
-    }
-
 private:
     int _next = 0;
     bool _boss_started = false;

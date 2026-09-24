@@ -5,6 +5,7 @@
 .EXAMPLE
     .\build.ps1              # release ROM  -> spaceshooter.gba
     .\build.ps1 -DebugBuild  # debug ROM    -> spaceshooter_debug.gba
+    .\build.ps1 -ProfileBuild # release code + test hooks -> spaceshooter_profile.gba
     .\build.ps1 -Clean       # remove build outputs
     .\build.ps1 -Run         # build, then open the ROM in mGBA (if found)
 
@@ -14,6 +15,7 @@
 #>
 param(
     [switch]$DebugBuild,
+    [switch]$ProfileBuild,
     [switch]$Clean,
     [switch]$Run,
     [int]$Jobs = 0
@@ -63,6 +65,7 @@ try {
     if ($Jobs -le 0) { $Jobs = [Environment]::ProcessorCount }
     $makeArgs = "-j$Jobs PYTHON=$pythonUnix"
     if ($DebugBuild) { $makeArgs += ' DEBUG=1' }
+    elseif ($ProfileBuild) { $makeArgs += ' PROFILE=1' }
     $cmd = if ($Clean) { "make clean $makeArgs" } else { "make $makeArgs" }
     $drive = $letter.ToLower()
 
@@ -77,7 +80,8 @@ try {
 if ($code -ne 0) { throw "Build failed (exit code $code)." }
 if ($Clean) { Write-Host 'Clean done.'; exit 0 }
 
-$rom = Join-Path $root ($(if ($DebugBuild) { 'spaceshooter_debug.gba' } else { 'spaceshooter.gba' }))
+$romName = if ($DebugBuild) { 'spaceshooter_debug.gba' } elseif ($ProfileBuild) { 'spaceshooter_profile.gba' } else { 'spaceshooter.gba' }
+$rom = Join-Path $root $romName
 if (-not (Test-Path $rom)) { throw "Build reported success but $rom is missing." }
 $size = (Get-Item $rom).Length
 Write-Host ("ROM: {0} ({1:N0} bytes)" -f $rom, $size)

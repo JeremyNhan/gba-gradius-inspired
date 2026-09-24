@@ -30,11 +30,6 @@ public:
         return _state == state::FLYING;
     }
 
-    [[nodiscard]] bool vulnerable() const
-    {
-        return _state == state::FLYING && _invulnerable_frames == 0;
-    }
-
     [[nodiscard]] const bn::fixed_point& position() const
     {
         return _position;
@@ -50,11 +45,6 @@ public:
     [[nodiscard]] hitbox pickup_hitbox() const
     {
         return make_hitbox(_position, 9, 7);
-    }
-
-    [[nodiscard]] bool waiting_to_respawn() const
-    {
-        return _state == state::DEAD;
     }
 
     /// Stage clear: stop shooting and fly out to the right.

@@ -29,6 +29,13 @@ run_test(function()
     shot("03_shooting")
     key_up(KEY.A)
 
+    -- Charged shot: hold B past the charge time, release, one piercing wave comes out.
+    wait(45)
+    check("normal shots leave the screen", tel("player_shots") == 0, tel("player_shots"))
+    hold(KEY.B, 60)
+    wait(2)
+    check("B charge + release fires a charged shot", tel("player_shots") > 0, tel("player_shots"))
+
     -- Pause freezes gameplay completely
     press(KEY.START)
     wait(5)

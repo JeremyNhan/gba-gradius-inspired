@@ -107,8 +107,6 @@ private:
     void _animate(world& w, enemy& e);
 };
 
-[[nodiscard]] const enemy_def& enemy_definition(enemy_kind kind);
-
 }
 
 #endif

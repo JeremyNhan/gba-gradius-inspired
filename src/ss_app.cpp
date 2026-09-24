@@ -1,7 +1,10 @@
 #include "ss_app.h"
 
+#include "bn_bg_maps.h"
 #include "bn_bg_palettes.h"
+#include "bn_bg_tiles.h"
 #include "bn_core.h"
+#include "bn_sprite_tiles.h"
 #include "bn_keypad.h"
 #include "bn_music.h"
 #include "bn_sprite_palettes.h"
@@ -62,12 +65,18 @@ void app::update()
         _enter(next);
     }
 
+    _update_fade();
     audio::update();
 
     volatile ss_telemetry_block& t = ss_telemetry;
-    ++t.frame;
+    t.frame = t.frame + 1;
     t.state = (uint8_t) _state;
     t.music_playing = bn::music::playing() && ! bn::music::paused() ? 1 : 0;
+    t.score = unsigned(_session.score);
+    t.hiscore = unsigned(_session.hiscore);
+    t.sprite_tiles_used = (uint16_t) bn::sprite_tiles::used_tiles_count();
+    t.bg_tiles_used = (uint16_t) bn::bg_tiles::used_tiles_count();
+    t.bg_map_cells_used = (uint16_t) bn::bg_maps::used_cells_count();
     int cpu = (bn::core::last_cpu_usage() * 100).integer();
     t.cpu_pct = (uint8_t) bn::min(cpu, 255);
 
@@ -83,6 +92,24 @@ void app::update()
     if(_state == game_state::PLAYING && t.stage_frame > 3)
     {
         t.missed_frames = (uint16_t) (t.missed_frames + bn::core::last_missed_frames());
+    }
+}
+
+void app::_update_fade()
+{
+    if(_fade_in <= 0)
+    {
+        return;
+    }
+
+    --_fade_in;
+    bn::fixed intensity = bn::fixed(_fade_in) / fade_frames;
+    bn::bg_palettes::set_fade(bn::color(0, 0, 0), intensity);
+
+    // The ending screen drives the sprite fade itself (page transitions).
+    if(_state != game_state::ENDING)
+    {
+        bn::sprite_palettes::set_fade(bn::color(0, 0, 0), intensity);
     }
 }
 
@@ -148,6 +175,16 @@ game_state app::_update_stage_clear()
 
     if(_timer >= 300 && outro_done)
     {
+        // Fade to black before loading the next screen.
+        if(_fade_out < fade_frames)
+        {
+            ++_fade_out;
+            bn::fixed intensity = bn::fixed(_fade_out) / fade_frames;
+            bn::bg_palettes::set_fade(bn::color(0, 0, 0), intensity);
+            bn::sprite_palettes::set_fade(bn::color(0, 0, 0), intensity);
+            return game_state::STAGE_CLEAR;
+        }
+
         if(_final_clear)
         {
             return game_state::ENDING;
@@ -184,7 +221,19 @@ void app::_enter(game_state next)
     game_state previous = _state;
     _state = next;
     _timer = 0;
+    _fade_out = 0;
     _overlay.clear();
+
+    bool new_screen = next == game_state::TITLE || next == game_state::ENDING ||
+            (next == game_state::PLAYING && previous != game_state::PAUSED);
+
+    if(new_screen)
+    {
+        // Start fully black; _update_fade() brings the palettes back over fade_frames frames.
+        _fade_in = fade_frames + 1;
+        bn::bg_palettes::set_fade(bn::color(0, 0, 0), 1);
+        bn::sprite_palettes::set_fade(bn::color(0, 0, 0), 1);
+    }
 
     switch(next)
     {
@@ -193,8 +242,6 @@ void app::_enter(game_state next)
         _save_hiscore();
         _world.reset();
         _ending.reset();
-        bn::bg_palettes::set_fade(bn::color(0, 0, 0), 0);
-        bn::sprite_palettes::set_fade(bn::color(0, 0, 0), 0);
         _title.emplace(_text, _session.hiscore);
         break;
 

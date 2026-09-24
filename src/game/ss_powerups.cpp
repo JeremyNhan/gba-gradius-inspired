@@ -135,7 +135,7 @@ void powerups::collect(world& w, powerup& item)
     _pool.release(item);
 }
 
-void powerups::update(world& w)
+void powerups::update(world&)
 {
     for(powerup& item : _pool)
     {

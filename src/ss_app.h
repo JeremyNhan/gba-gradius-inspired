@@ -40,7 +40,13 @@ private:
     bn::optional<ending_screen> _ending;
     bn::vector<bn::sprite_ptr, 24> _overlay;
     int _timer = 0;
+    int _fade_in = 0;           // frames left of the palette fade-in after a screen change
+    int _fade_out = 0;          // frames of the stage-clear fade-out done so far
     bool _final_clear = false;
+
+    static constexpr int fade_frames = 16;
+
+    void _update_fade();
 
     [[nodiscard]] game_state _update_title();
     [[nodiscard]] game_state _update_playing();

@@ -3,7 +3,7 @@
 ## 1. Stack
 
 ```
-assets/source/*  (ASCII pixel art, palettes, song scores; plain text)
+tools/*.py  (pixel art as ASCII grids/drawing code, palettes, song scores; plain text)
       │  tools/gen_assets.py   (Python 3, stdlib only; deterministic)
       ▼
 assets/generated/graphics/*.bmp + *.json   assets/generated/audio/*.mod, *.wav
@@ -23,15 +23,15 @@ The Makefile's `EXTTOOL` hook runs the asset generator before each build. The ge
 Makefile              Butano project makefile (TARGET=spaceshooter)
 build.ps1 / build.sh  one-command build (handles path-with-space via subst)
 external/butano       Butano engine, git submodule pinned to tag 21.8.0
-tools/                asset generator (bmp writer, pixel-art canvas, MOD writer, SFX synth)
-assets/source/        human-editable asset sources
+tools/                asset sources + generator (sprites, backgrounds, font, palettes, music, SFX)
 assets/generated/     build output of tools/ (git-ignored)
 src/
-  main.cpp            boot + top-level state machine
+  main.cpp            boot + main loop
+  ss_app.cpp/.h       top-level state machine
   core/               app-wide helpers: constants, pool, collision, save, telemetry/debug, text
   game/               gameplay: world, player, weapons, shots, enemies, bullets, powerups, boss, terrain, stage runner, effects, hud, backgrounds
   data/               constexpr tables: weapons, enemies, stages, bosses
-  screens/            title, stage clear, game over, ending, pause overlay
+  screens/            title and ending screens (pause, stage clear and game over are overlays drawn by ss_app)
 tests/                mGBA Lua test scripts + runner
 docs/                 research, architecture, design, testing
 ```
@@ -60,7 +60,7 @@ A single `switch` in `app::update()` dispatches to one handler per state. Each h
 ## 4. Memory strategy
 
 * **No heap.** All scenes live in one EWRAM static block (`BN_DATA_EWRAM_BSS`) as `bn::optional<…>` members, constructed and destroyed at transitions.
-* Entities live in **fixed-size pools** (`core/pool.h`: array + active flags, deterministic iteration order). When a pool is full, the spawn request is **dropped** (returns `nullptr`) and a counter in telemetry records it. It never overwrites memory or crashes.
+* Entities live in **fixed-size pools** (`core/ss_pool.h`: array + active flags, deterministic iteration order). When a pool is full, the spawn request is **dropped** (returns `nullptr`) and a counter in telemetry records it. It never overwrites memory or crashes.
 * IWRAM holds only the stack, Butano internals, the telemetry block, and small globals.
 * Read-only data (enemy, weapon, stage and boss tables) is `constexpr` and stays in ROM.
 
@@ -122,19 +122,21 @@ Maxmod through `bn::music` / `bn::sound`. Music is generated 4-channel ProTracke
 `build.ps1` (Windows):
 1. Locate devkitPro (`C:\devkitPro`) and Python (`py -3`).
 2. `subst` a free drive letter to the repo (paths with spaces break make).
-3. Run MSYS2 bash: `make -j$(nproc) PYTHON=…` (release) or `DEBUG=1` → `spaceshooter_debug.gba`.
+3. Run MSYS2 bash: `make -j$(nproc) PYTHON=…` (release), `DEBUG=1` (`-DebugBuild`) or `PROFILE=1` (`-ProfileBuild`).
 4. Remove the drive mapping.
 
 `build.sh` (Linux/MSYS2 shell): `make -j$(nproc)`.
 
 Build variants:
 
-| | Release (`make`) | Debug (`make DEBUG=1`) |
-|---|---|---|
-| Output | `spaceshooter.gba` | `spaceshooter_debug.gba` |
-| Butano asserts | off (`BN_CFG_ASSERT_ENABLED=false`) | on |
-| Debug overlay/cheats | compiled out (`SS_DEBUG=0`) | on |
-| Telemetry block | on (read-only state for tests) | on + test controls |
+| | Release (`make`) | Debug (`make DEBUG=1`) | Profile (`make PROFILE=1`) |
+|---|---|---|---|
+| Output | `spaceshooter.gba` | `spaceshooter_debug.gba` | `spaceshooter_profile.gba` |
+| Butano asserts / logging | off | on | off |
+| Debug overlay, stage select, L+R skip | compiled out (`SS_DEBUG=0`) | on | compiled out |
+| Telemetry block | on (read-only state for tests) | on + test controls | on + test controls (`SS_TEST_HOOKS=1`) |
+
+The profile build runs release-optimised code with the test controls, so CPU measurements reflect the shipped ROM.
 
 ## 11. Testing
 

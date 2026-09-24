@@ -70,7 +70,6 @@ def player():
         rows = _shear(PLAYER, bank) if bank else PLAYER
         for flame in (0, 1):
             r = [list(x) for x in rows]
-            y_center = 7 + (-bank if bank else 0) * 0
             # engine flame flicker: alternate the two exhaust pixels
             for y in range(16):
                 for x in range(2):
@@ -184,17 +183,20 @@ def turret():
     for i in range(5):
         c = Canvas(16, 16)
         ang = math.pi - i * math.pi / 4   # 180 deg (left) .. 0 deg (right)
-        cx, cy = 7.5, 10.5
-        for t in range(3, 8):
-            x = cx + math.cos(ang) * t
-            y = cy - math.sin(ang) * t
-            c.set(int(round(x)), int(round(y)), M['l'])
-            c.set(int(round(x + (0 if i in (0, 4) else 1))), int(round(y + (1 if i in (0, 4) else 0))), M['d'])
+        cx, cy = 7.5, 9.5
         c.ellipse(7.5, 12.5, 5.5, 4.5, M['d'])
         c.ellipse(7.5, 11.5, 4, 3, M['l'])
+        c.rect(1, 14, 14, 2, M['n'])
+        # two-pixel-thick barrel drawn over the dome: light line with a dark underside, red muzzle
+        nx, ny = math.sin(ang), math.cos(ang)
+        for t in range(2, 8):
+            x = cx + math.cos(ang) * t
+            y = cy - math.sin(ang) * t
+            c.set(int(round(x + nx * 0.8)), int(round(y + ny * 0.8)), M['d'])
+            c.set(int(round(x)), int(round(y)), M['l'])
+        c.set(int(round(cx + math.cos(ang) * 7.5)), int(round(cy - math.sin(ang) * 7.5)), M['r'])
         c.set(7, 11, M['o'])
         c.set(8, 11, M['o'])
-        c.rect(1, 14, 14, 2, M['n'])
         c.outline(M['K'])
         frames.append(c)
     return vstack(frames), 16

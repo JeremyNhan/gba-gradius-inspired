@@ -3,6 +3,8 @@
 #include "bn_core.h"
 #include "bn_keypad.h"
 #include "bn_sprites.h"
+#include "bn_timer.h"
+#include "bn_timers.h"
 
 #include "ss_audio.h"
 #include "ss_telemetry.h"
@@ -112,19 +114,41 @@ world::result world::update()
 
     scroll_x += scroll_speed;
 
+    // Per-system cost (test-hook builds only): each SS_PROFILE stores the ticks spent since the previous
+    // one into ss_telemetry.prof[slot], in 1/1000 of a frame. tests/full_run.lua reports them.
+#if SS_TEST_HOOKS
+    bn::timer prof_timer;
+    #define SS_PROFILE(slot) ss_telemetry.prof[slot] =             uint16_t(prof_timer.elapsed_ticks_with_restart() * 1000 / bn::timers::ticks_per_frame())
+#else
+    #define SS_PROFILE(slot) (void) 0
+#endif
+
     runner.update(*this);
+    SS_PROFILE(0);
     ship.update(*this);
+    SS_PROFILE(1);
     shots.update(*this);
+    SS_PROFILE(2);
     foes.update(*this);
+    SS_PROFILE(3);
     big_boss.update(*this);
+    SS_PROFILE(4);
     bullets.update(*this);
+    SS_PROFILE(5);
     items.update(*this);
+    SS_PROFILE(6);
     _collide();
+    SS_PROFILE(7);
     fx.update(*this);
+    SS_PROFILE(8);
     ground.update(scroll_x);
+    SS_PROFILE(9);
     bgs.update(scroll_x);
     _update_camera();
+    SS_PROFILE(10);
     display.update(*this);
+    SS_PROFILE(11);
+    #undef SS_PROFILE
     _update_telemetry();
 
     if(_game_over_timer && --_game_over_timer == 0)

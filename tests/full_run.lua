@@ -23,9 +23,13 @@ local function bot()
     else key_up(KEY.LEFT); key_up(KEY.RIGHT) end
 end
 
-local stats = { cpu_max = 0, sprites_max = 0, bullets_max = 0, enemies_max = 0, shots_max = 0 }
+local stats = { cpu_max = 0, sprites_max = 0, bullets_max = 0, enemies_max = 0, shots_max = 0,
+                cpu_sum = 0, cpu_frames = 0, obj_tiles_max = 0, bg_tiles_max = 0, map_cells_max = 0,
+                powerups_max = 0, speed_max = 0, missile_max = 0, shield_max = 0 }
 
 local heavy_logged = 0
+local prof_sum, prof_max = {}, {}
+for i = 0, 11 do prof_sum[i] = 0; prof_max[i] = 0 end
 
 local function track()
     if tel("state") == STATE.PLAYING and tel("stage_frame") > 3 then
@@ -35,10 +39,24 @@ local function track()
             log(string.format("heavy frame: cpu=%d%% %s", cpu, snapshot_line()))
         end
         stats.cpu_max = math.max(stats.cpu_max, cpu)
+        stats.cpu_sum = stats.cpu_sum + cpu
+        stats.cpu_frames = stats.cpu_frames + 1
+        for i = 0, 11 do
+            local v = tel("prof" .. i)
+            prof_sum[i] = prof_sum[i] + v
+            prof_max[i] = math.max(prof_max[i], v)
+        end
+        stats.obj_tiles_max = math.max(stats.obj_tiles_max, tel("sprite_tiles_used"))
+        stats.bg_tiles_max = math.max(stats.bg_tiles_max, tel("bg_tiles_used"))
+        stats.map_cells_max = math.max(stats.map_cells_max, tel("bg_map_cells_used"))
         stats.sprites_max = math.max(stats.sprites_max, tel("sprites_used"))
         stats.bullets_max = math.max(stats.bullets_max, tel("enemy_bullets"))
         stats.enemies_max = math.max(stats.enemies_max, tel("enemies"))
         stats.shots_max = math.max(stats.shots_max, tel("player_shots"))
+        stats.powerups_max = math.max(stats.powerups_max, tel("powerups"))
+        stats.speed_max = math.max(stats.speed_max, tel("speed_level"))
+        stats.missile_max = math.max(stats.missile_max, tel("missile_level"))
+        stats.shield_max = math.max(stats.shield_max, tel("shield"))
     end
 end
 
@@ -113,6 +131,22 @@ run_test(function()
 
     log(string.format("max cpu %d%%, max sprites %d, max enemy bullets %d, max enemies %d, max shots %d",
         stats.cpu_max, stats.sprites_max, stats.bullets_max, stats.enemies_max, stats.shots_max))
+    log(string.format("average cpu %.1f%% over %d gameplay frames", stats.cpu_sum / math.max(1, stats.cpu_frames),
+        stats.cpu_frames))
+    log(string.format("VRAM peak: OBJ tiles %d/1024, BG tiles %d, BG map cells %d",
+        stats.obj_tiles_max, stats.bg_tiles_max, stats.map_cells_max))
+    local parts = {}
+    for i = 0, 11 do
+        parts[#parts + 1] = string.format("%s %.1f/%.1f", PROF_NAMES[i],
+            prof_sum[i] / math.max(1, stats.cpu_frames) / 10, prof_max[i] / 10)
+    end
+    log("system cost % of frame (avg/max): " .. table.concat(parts, ", "))
+    log(string.format("loadout peak: speed %d, missile %d, shield %d", stats.speed_max, stats.missile_max,
+        stats.shield_max))
+    check("power-up capsules dropped", stats.powerups_max > 0, stats.powerups_max)
+    check("power-ups collected (speed/missile upgraded)", stats.speed_max > 1 and stats.missile_max > 0,
+        stats.speed_max .. "/" .. stats.missile_max)
+    check("OBJ VRAM within 32 KB (1024 4bpp tiles)", stats.obj_tiles_max <= 1024, stats.obj_tiles_max)
     check("CPU budget: worst frame under 100%", stats.cpu_max < 100, stats.cpu_max .. "%")
     check("no missed frames", tel("missed_frames") == 0, tel("missed_frames"))
     check("sprite budget respected (<=128)", stats.sprites_max <= 128, stats.sprites_max)

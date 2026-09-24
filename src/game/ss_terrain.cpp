@@ -118,17 +118,31 @@ void terrain::_height_at(int world_column, int& ceiling, int& floor) const
     floor = previous->floor;
 }
 
+void terrain::_cached_height_at(int world_column, int& ceiling, int& floor) const
+{
+    if(world_column >= _next_column - columns && world_column < _next_column)
+    {
+        int map_column = world_column & (columns - 1);
+        ceiling = _ceiling_cache[map_column];
+        floor = _floor_cache[map_column];
+    }
+    else
+    {
+        _height_at(world_column, ceiling, floor);
+    }
+}
+
 int terrain::ceiling_tiles(int world_column) const
 {
     int ceiling, floor;
-    _height_at(world_column, ceiling, floor);
+    _cached_height_at(world_column, ceiling, floor);
     return ceiling;
 }
 
 int terrain::floor_tiles(int world_column) const
 {
     int ceiling, floor;
-    _height_at(world_column, ceiling, floor);
+    _cached_height_at(world_column, ceiling, floor);
     return floor;
 }
 
@@ -138,6 +152,8 @@ void terrain::_write_column(int world_column)
     _height_at(world_column, ceiling, floor);
 
     int map_column = world_column & (columns - 1);
+    _ceiling_cache[map_column] = (signed char) ceiling;
+    _floor_cache[map_column] = (signed char) floor;
     bn::regular_bg_map_item& item = *_map_item;
 
     for(int row = 0; row < visible_rows; ++row)
@@ -204,7 +220,7 @@ bool terrain::blocks(const hitbox& box, bn::fixed scroll_x) const
     for(int column = first; column <= last; ++column)
     {
         int ceiling, floor;
-        _height_at(column, ceiling, floor);
+        _cached_height_at(column, ceiling, floor);
 
         if(ceiling > 0 && top < -half_h + ceiling * 8)
         {

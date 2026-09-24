@@ -39,11 +39,6 @@ namespace
     constexpr int spawn_x = 136;
 }
 
-const enemy_def& enemy_definition(enemy_kind kind)
-{
-    return enemy_defs[int(kind)];
-}
-
 hitbox enemy::box() const
 {
     return make_hitbox(position, def->half_w, def->half_h);

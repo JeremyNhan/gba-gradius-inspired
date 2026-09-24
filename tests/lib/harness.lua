@@ -22,8 +22,13 @@ local FIELDS = {
     cpu_pct_max = { 49, 1 }, missed_frames = { 50, 2 }, pool_drops = { 52, 2 }, player_alive = { 54, 1 },
     deaths = { 55, 1 }, sprites_used = { 56, 1 }, ctl_invincible = { 57, 1 }, ctl_autofire = { 58, 1 },
     ctl_skip_to_boss = { 59, 1 }, music_playing = { 60, 1 }, cpu_max_stage_frame = { 64, 4 },
-    cpu_max_frame = { 68, 4 },
+    cpu_max_frame = { 68, 4 }, sprite_tiles_used = { 72, 2 }, bg_tiles_used = { 74, 2 },
+    bg_map_cells_used = { 76, 2 },
 }
+-- prof0..prof11: per-system cost of the last gameplay frame in 1/1000 frame (test-hook builds).
+for i = 0, 11 do FIELDS["prof" .. i] = { 78 + 2 * i, 2 } end
+PROF_NAMES = { [0] = "stage", "player", "shots", "enemies", "boss", "bullets", "powerups", "collide",
+               "effects", "terrain", "bgs+camera", "hud" }
 
 -- GBA sound registers (GBATEK "GBA Sound Control Registers").
 function sound_status()

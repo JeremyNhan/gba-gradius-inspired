@@ -35,9 +35,9 @@ struct hitbox
     }
 };
 
-[[nodiscard]] constexpr hitbox make_hitbox(const bn::fixed_point& center, int half_w, int half_h)
+[[nodiscard]] constexpr hitbox make_hitbox(const bn::fixed_point& center, int half_width, int half_height)
 {
-    return hitbox{ center, half_w, half_h };
+    return hitbox{ center, half_width, half_height };
 }
 
 /// True when a point is outside the screen by more than margin pixels (used to despawn).
